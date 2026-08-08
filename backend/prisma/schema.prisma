@@ -1,0 +1,544 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum ChainType {
+  ETHEREUM
+  BASE
+  POLYGON
+  ARBITRUM
+  BNB_CHAIN
+  OPTIMISM
+  SOLANA
+}
+
+enum TxType {
+  NATIVE_TRANSFER
+  TOKEN_TRANSFER
+  NFT_TRANSFER
+  DEX_SWAP
+  LIQUIDITY_ADD
+  LIQUIDITY_REMOVE
+  BRIDGE_DEPOSIT
+  BRIDGE_CLAIM
+  APPROVAL
+  CONTRACT_DEPLOY
+  CONTRACT_INTERACTION
+}
+
+enum TxStatus {
+  SUCCESS
+  REVERTED
+  PENDING
+}
+
+enum TokenType {
+  NATIVE
+  ERC20
+  ERC721
+  ERC1155
+  SPL_TOKEN
+  METAPLEX_NFT
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum QueueJobStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  RETRYING
+}
+
+enum ApiTier {
+  DEVELOPER_FREE
+  PRO_STARTUP
+  ENTERPRISE_UNLIMITED
+}
+
+model Block {
+  id               String         @id @default(cuid())
+  chainId          ChainType
+  blockNumber      BigInt
+  blockHash        String         @unique
+  parentHash       String
+  timestamp        DateTime
+  gasUsed          BigInt
+  gasLimit         BigInt
+  baseFeePerGas    BigInt?
+  transactionCount Int
+  transactions     Transaction[]
+
+  @@unique([chainId, blockNumber])
+  @@index([chainId, timestamp(sort: Desc)])
+  @@map("blocks")
+}
+
+model Transaction {
+  id                String            @id @default(cuid())
+  chainId           ChainType
+  txHash            String            @unique
+  blockNumber       BigInt
+  block             Block             @relation(fields: [chainId, blockNumber], references: [chainId, blockNumber])
+  fromAddress       String
+  toAddress         String?
+  value             Decimal           @db.Decimal(36, 18)
+  valueUsd          Decimal?          @db.Decimal(18, 2)
+  gasPrice          BigInt?
+  gasUsed           BigInt
+  effectiveGasPrice BigInt?
+  maxFeePerGas      BigInt?
+  maxPriorityFee    BigInt?
+  nonce             Int
+  status            TxStatus
+  txType            TxType
+  inputData         String?           @db.Text
+  errorMessage      String?
+
+  tokenTransfers    TokenTransfer[]
+  nftTransfers      NftTransfer[]
+  dexSwaps          DexSwap[]
+  liquidityEvents   LiquidityEvent[]
+  bridgeTransfers   BridgeTransfer[]
+  approvalEvents    ApprovalEvent[]
+
+  createdAt         DateTime          @default(now())
+
+  @@index([fromAddress, createdAt(sort: Desc)])
+  @@index([toAddress, createdAt(sort: Desc)])
+  @@index([chainId, blockNumber(sort: Desc)])
+  @@index([txType, chainId])
+  @@map("transactions")
+}
+
+model TokenTransfer {
+  id              String       @id @default(cuid())
+  chainId         ChainType
+  txHash          String
+  transaction     Transaction  @relation(fields: [txHash], references: [txHash])
+  tokenAddress    String
+  symbol          String
+  name            String
+  decimals        Int
+  fromAddress     String
+  toAddress       String
+  amount          Decimal      @db.Decimal(36, 18)
+  amountUsd       Decimal?     @db.Decimal(18, 2)
+  timestamp       DateTime
+
+  @@index([fromAddress, timestamp(sort: Desc)])
+  @@index([toAddress, timestamp(sort: Desc)])
+  @@index([tokenAddress, timestamp(sort: Desc)])
+  @@map("token_transfers")
+}
+
+model NftTransfer {
+  id              String       @id @default(cuid())
+  chainId         ChainType
+  txHash          String
+  transaction     Transaction  @relation(fields: [txHash], references: [txHash])
+  contractAddress String
+  collectionName  String?
+  tokenId         String
+  tokenType       TokenType
+  fromAddress     String
+  toAddress       String
+  estimatedFloorUsd Decimal?   @db.Decimal(18, 2)
+  timestamp       DateTime
+
+  @@index([contractAddress, tokenId])
+  @@index([fromAddress, timestamp(sort: Desc)])
+  @@index([toAddress, timestamp(sort: Desc)])
+  @@map("nft_transfers")
+}
+
+model DexSwap {
+  id              String       @id @default(cuid())
+  chainId         ChainType
+  txHash          String
+  transaction     Transaction  @relation(fields: [txHash], references: [txHash])
+  dexName         String
+  pairAddress     String
+  traderAddress   String
+  tokenInAddress  String
+  tokenInSymbol   String
+  amountIn        Decimal      @db.Decimal(36, 18)
+  tokenOutAddress String
+  tokenOutSymbol  String
+  amountOut       Decimal      @db.Decimal(36, 18)
+  volumeUsd       Decimal      @db.Decimal(18, 2)
+  priceImpactPct  Decimal?     @db.Decimal(5, 2)
+  timestamp       DateTime
+
+  @@index([pairAddress, timestamp(sort: Desc)])
+  @@index([traderAddress, timestamp(sort: Desc)])
+  @@index([tokenInAddress, tokenOutAddress])
+  @@map("dex_swaps")
+}
+
+model LiquidityEvent {
+  id              String       @id @default(cuid())
+  chainId         ChainType
+  txHash          String
+  transaction     Transaction  @relation(fields: [txHash], references: [txHash])
+  dexName         String
+  poolAddress     String
+  providerAddress String
+  isAdd           Boolean
+  token0Symbol    String
+  token0Amount    Decimal      @db.Decimal(36, 18)
+  token1Symbol    String
+  token1Amount    Decimal      @db.Decimal(36, 18)
+  totalValueUsd   Decimal      @db.Decimal(18, 2)
+  timestamp       DateTime
+
+  @@index([poolAddress, timestamp(sort: Desc)])
+  @@index([providerAddress, timestamp(sort: Desc)])
+  @@map("liquidity_events")
+}
+
+model BridgeTransfer {
+  id              String       @id @default(cuid())
+  sourceChain     ChainType
+  targetChain     ChainType
+  txHash          String
+  transaction     Transaction  @relation(fields: [txHash], references: [txHash])
+  bridgeName      String
+  senderAddress   String
+  recipientAddress String
+  tokenSymbol     String
+  amount          Decimal      @db.Decimal(36, 18)
+  amountUsd       Decimal      @db.Decimal(18, 2)
+  status          TxStatus     @default(SUCCESS)
+  timestamp       DateTime
+
+  @@index([senderAddress, timestamp(sort: Desc)])
+  @@index([bridgeName, timestamp(sort: Desc)])
+  @@map("bridge_transfers")
+}
+
+model ApprovalEvent {
+  id              String       @id @default(cuid())
+  chainId         ChainType
+  txHash          String
+  transaction     Transaction  @relation(fields: [txHash], references: [txHash])
+  ownerAddress    String
+  spenderAddress  String
+  spenderName     String?
+  tokenAddress    String
+  tokenSymbol     String
+  allowanceAmount String
+  isUnlimited     Boolean
+  riskScore       Int
+  timestamp       DateTime
+
+  @@index([ownerAddress, timestamp(sort: Desc)])
+  @@index([spenderAddress])
+  @@index([tokenAddress])
+  @@map("approval_events")
+}
+
+model WalletIntelligence {
+  address                 String          @id
+  ensName                 String?
+  walletAgeDays           Int             @default(0)
+  firstTxAt               DateTime?
+  lastTxAt                DateTime?
+  txCount                 Int             @default(0)
+  totalGasSpentEth        Decimal         @default(0) @db.Decimal(36, 18)
+  totalGasSpentUsd        Decimal         @default(0) @db.Decimal(18, 2)
+  currentBalanceUsd       Decimal         @default(0) @db.Decimal(18, 2)
+  
+  avgHoldingDurationDays  Int             @default(0)
+  realizedProfitUsd       Decimal         @default(0) @db.Decimal(18, 2)
+  unrealizedProfitUsd     Decimal         @default(0) @db.Decimal(18, 2)
+
+  favoriteDex             String          @default("Uniswap v3")
+  favoriteChain           String          @default("Ethereum")
+  favoriteTokens          Json            @default("[]")
+  bridgesUsed             Json            @default("[]")
+  topCounterparties       Json            @default("[]")
+  protocolUsage           Json            @default("[]")
+  defiPositions           Json            @default("[]")
+  historicalBalanceChart  Json            @default("[]")
+
+  riskLevel               RiskLevel       @default(LOW)
+  shadowScore             Int             @default(75)
+  reputationRank          String          @default("Tier 1 Verified")
+  
+  lastAuditedAt           DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
+
+  @@index([shadowScore(sort: Desc)])
+  @@index([riskLevel])
+  @@index([currentBalanceUsd(sort: Desc)])
+  @@map("wallet_intelligence")
+}
+
+model LiveTransactionStream {
+  id              String       @id @default(cuid())
+  txHash          String       @unique
+  walletAddress   String
+  tokenSymbol     String
+  tokenAddress    String?
+  amount          Decimal      @db.Decimal(36, 18)
+  usdValue        Decimal      @db.Decimal(18, 2)
+  gasGwei         Decimal      @db.Decimal(10, 2)
+  chainName       String
+  chainId         ChainType
+  swapRoute       String
+  protocol        String
+  status          TxStatus     @default(SUCCESS)
+  timestamp       DateTime     @default(now())
+
+  @@index([timestamp(sort: Desc)])
+  @@index([walletAddress, timestamp(sort: Desc)])
+  @@index([tokenSymbol, timestamp(sort: Desc)])
+  @@index([protocol])
+  @@index([chainName])
+  @@map("live_transaction_stream")
+}
+
+model Token {
+  id                  String       @id @default(cuid())
+  address             String       @unique
+  chainId             ChainType
+  symbol              String
+  name                String
+  decimals            Int          @default(18)
+  logoUrl             String?
+  
+  priceUsd            Decimal      @db.Decimal(18, 8)
+  marketCapUsd        Decimal      @db.Decimal(24, 2)
+  fdvUsd              Decimal      @db.Decimal(24, 2)
+  liquidityUsd        Decimal      @db.Decimal(18, 2)
+  
+  holdersCount        Int          @default(0)
+  transfersCount      Int          @default(0)
+  circulatingSupply   Decimal      @db.Decimal(36, 18)
+  totalSupply         Decimal      @db.Decimal(36, 18)
+  
+  volume24hUsd        Decimal      @db.Decimal(18, 2)
+  buyVolume24hUsd     Decimal      @db.Decimal(18, 2)
+  sellVolume24hUsd    Decimal      @db.Decimal(18, 2)
+  
+  priceChange1h       Decimal      @db.Decimal(6, 2)
+  priceChange24h      Decimal      @db.Decimal(6, 2)
+  priceChange7d       Decimal      @db.Decimal(6, 2)
+  
+  largestHolders      Json         @default("[]")
+  newHolders24h       Json         @default("[]")
+  priceHistory        Json         @default("[]")
+  
+  updatedAt           DateTime     @updatedAt
+
+  @@index([symbol])
+  @@index([marketCapUsd(sort: Desc)])
+  @@index([volume24hUsd(sort: Desc)])
+  @@index([chainId])
+  @@map("tokens")
+}
+
+model WalletNftItem {
+  id                  String       @id @default(cuid())
+  walletAddress       String
+  contractAddress     String
+  tokenId             String
+  collectionName      String
+  tokenType           TokenType
+  chainType           ChainType
+  imageUrl            String?
+  rarityRank          Int?
+  rarityTier          String?
+  
+  estimatedFloorEth   Decimal      @db.Decimal(36, 18)
+  estimatedFloorUsd   Decimal      @db.Decimal(18, 2)
+  currentFloorPrice   Decimal      @db.Decimal(18, 2)
+  
+  lastPurchasePrice   Decimal?     @db.Decimal(18, 2)
+  lastPurchaseDate    DateTime?
+  lastSalePrice       Decimal?     @db.Decimal(18, 2)
+  lastSaleDate        DateTime?
+  avgPurchasePrice    Decimal?     @db.Decimal(18, 2)
+  pnlUsd              Decimal?     @db.Decimal(18, 2)
+  pnlPercentage       Decimal?     @db.Decimal(6, 2)
+  
+  marketplace         String       @default("OpenSea")
+  transferHistory     Json         @default("[]")
+  
+  updatedAt           DateTime     @updatedAt
+
+  @@unique([contractAddress, tokenId, walletAddress])
+  @@index([walletAddress, estimatedFloorUsd(sort: Desc)])
+  @@index([collectionName])
+  @@index([chainType])
+  @@map("wallet_nfts")
+}
+
+model PortfolioSnapshot {
+  id                  String       @id @default(cuid())
+  walletAddress       String
+  
+  netWorthUsd         Decimal      @db.Decimal(18, 2)
+  tokenAllocationUsd  Decimal      @db.Decimal(18, 2)
+  tokenAllocationPct  Decimal      @db.Decimal(5, 2)
+  nftAllocationUsd    Decimal      @db.Decimal(18, 2)
+  nftAllocationPct    Decimal      @db.Decimal(5, 2)
+  
+  stablecoinPct       Decimal      @db.Decimal(5, 2)
+  defiPct             Decimal      @db.Decimal(5, 2)
+  cashPct             Decimal      @db.Decimal(5, 2)
+  
+  totalRealizedPnlUsd Decimal      @db.Decimal(18, 2)
+  totalUnrealizedPnlUsd Decimal    @db.Decimal(18, 2)
+  totalPnlPct         Decimal      @db.Decimal(6, 2)
+  performance30dPct   Decimal      @db.Decimal(6, 2)
+  
+  chainAllocation     Json         @default("[]")
+  historicalChart     Json         @default("[]")
+  
+  timestamp           DateTime     @default(now())
+
+  @@index([walletAddress, timestamp(sort: Desc)])
+  @@index([netWorthUsd(sort: Desc)])
+  @@map("portfolio_snapshots")
+}
+
+model ShadowScoreAudit {
+  id                  String       @id @default(cuid())
+  walletAddress       String       @unique
+  
+  overallScore        Int
+  riskScore           Int
+  trustScore          Int
+  activityScore       Int
+  defiScore           Int
+  nftScore            Int
+  whaleScore          Int
+  securityScore       Int
+  reputationGrade     String
+  
+  inputsEvaluated     Json
+  scoreExplanations   Json
+  
+  auditedAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  @@index([overallScore(sort: Desc)])
+  @@index([riskScore])
+  @@index([reputationGrade])
+  @@map("shadowscore_audits")
+}
+
+model JobAuditRecord {
+  id              String         @id @default(cuid())
+  queueName       String
+  jobId           String         @unique
+  jobType         String
+  payload         Json
+  status          QueueJobStatus @default(QUEUED)
+  attempts        Int            @default(0)
+  maxRetries      Int            @default(3)
+  processedBy     String?
+  errorLog        String?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime       @default(now())
+
+  @@index([queueName, status])
+  @@index([createdAt(sort: Desc)])
+  @@map("job_audit_records")
+}
+
+model NotificationRecord {
+  id              String         @id @default(cuid())
+  recipient       String
+  channel         String
+  event           String
+  title           String
+  body            String
+  payload         Json
+  delivered       Boolean        @default(false)
+  sentAt          DateTime       @default(now())
+
+  @@index([channel, delivered])
+  @@index([sentAt(sort: Desc)])
+  @@map("notification_records")
+}
+
+model ApiKeyRecord {
+  id              String         @id @default(cuid())
+  keyHash         String         @unique
+  ownerName       String
+  tier            ApiTier        @default(DEVELOPER_FREE)
+  rateLimitPerMin Int            @default(60)
+  totalCalls      BigInt         @default(0)
+  isActive        Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+
+  @@index([keyHash])
+  @@index([tier])
+  @@map("api_keys")
+}
+
+model TrendingWidgetState {
+  id              String         @id @default(cuid())
+  widgetKey       String         @unique
+  itemsPayload    Json
+  updatedAt       DateTime       @updatedAt
+
+  @@index([widgetKey])
+  @@map("trending_widget_state")
+}
+
+model QueryPerformanceLog {
+  id              String         @id @default(cuid())
+  queryName       String
+  executionMs     Decimal        @db.Decimal(8, 2)
+  rowsAffected    Int            @default(0)
+  isSlowQuery     Boolean        @default(false)
+  executedAt      DateTime       @default(now())
+
+  @@index([isSlowQuery, executedAt(sort: Desc)])
+  @@index([queryName])
+  @@map("query_performance_logs")
+}
+
+// FEATURE 12: SECURITY & ENCRYPTED CREDENTIALS MODEL
+model EncryptedSecretRecord {
+  id              String         @id @default(cuid())
+  secretKeyName   String         @unique // ALCHEMY_API_KEY, GEMINI_API_KEY, PRIVATE_RPC
+  cipherText      String         @db.Text
+  ivHex           String
+  authTagHex      String
+  ownerId         String
+  createdAt       DateTime       @default(now())
+
+  @@index([secretKeyName])
+  @@map("encrypted_secret_records")
+}
+
+model SecurityAuditLog {
+  id              String         @id @default(cuid())
+  ipAddress       String
+  endpoint        String
+  threatDetected  Boolean        @default(false)
+  threatCategory  String?        // SQLI_ATTEMPT, XSS_SCRIPT, RPC_KEY_PROBE, RATE_LIMIT_EXCEEDED
+  actionTaken     String         // BLOCKED, SANITIZED, RATE_LIMITED, ALLOWED
+  timestamp       DateTime       @default(now())
+
+  @@index([threatDetected, timestamp(sort: Desc)])
+  @@index([threatCategory])
+  @@map("security_audit_logs")
+}
