@@ -52,8 +52,37 @@ export function App() {
   const [darkMode, setDarkMode] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Active wallet state
-  const [currentWallet, setCurrentWallet] = useState<WalletProfile>(MOCK_WALLETS[DEFAULT_WALLET_ADDRESS]);
+  // Active wallet state with full fallback safety
+  const defaultWalletProfile = MOCK_WALLETS[DEFAULT_WALLET_ADDRESS] || {
+    address: '0x99281313437194819741094812389148149831AA',
+    score: 84,
+    grade: 'A',
+    status: 'Healthy',
+    totalGasUsd: 42.50,
+    totalNfts: 3,
+    portfolioValueUsd: 12450.00,
+    topProtocols: ['Uniswap v3', 'Aave v3', 'Lido Finance'],
+    breakdown: [
+      { category: 'Security & Approvals', score: 92, maxScore: 100, color: '#00F0FF' },
+      { category: 'DeFi Activity', score: 84, maxScore: 100, color: '#00FF66' },
+      { category: 'NFT & Digital Assets', score: 78, maxScore: 100, color: '#8B5CF6' },
+      { category: 'Governance & DAO', score: 75, maxScore: 100, color: '#F59E0B' },
+    ],
+    reputationHistory: [
+      { date: 'Jan', score: 62 },
+      { date: 'Feb', score: 68 },
+      { date: 'Mar', score: 74 },
+      { date: 'Apr', score: 79 },
+      { date: 'May', score: 83 },
+      { date: 'Jun', score: 84 },
+    ],
+    approvals: [],
+    activeDApps: [],
+    timeline: [],
+    recommendations: []
+  };
+
+  const [currentWallet, setCurrentWallet] = useState<WalletProfile>(defaultWalletProfile);
   const [isMonitoringActive, setIsMonitoringActive] = useState(true);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [toastAlert, setToastAlert] = useState<string | null>(null);
@@ -62,7 +91,8 @@ export function App() {
   const [realWalletData, setRealWalletData] = useState<RealWalletFullData | null>(null);
   const isConnected = Boolean(realWalletData);
 
-  const unreadAlertsCount = currentWallet.approvals.filter(a => a.state === 'Active' && a.riskScore > 50).length;
+  const approvalsList = currentWallet?.approvals || [];
+  const unreadAlertsCount = approvalsList.filter(a => a.state === 'Active' && (((a as any).riskScore || 0) > 50 || a.riskLevel === 'High')).length;
 
   // Real Web3 Wallet Connect Handlers
   const handleConnectRealWallet = async () => {
@@ -93,7 +123,7 @@ export function App() {
 
   const handleDisconnectRealWallet = () => {
     setRealWalletData(null);
-    setCurrentWallet(MOCK_WALLETS[DEFAULT_WALLET_ADDRESS]);
+    setCurrentWallet(defaultWalletProfile);
     setToastAlert('🔌 Wallet disconnected. Switched to demo persona.');
     setTimeout(() => setToastAlert(null), 3000);
   };
@@ -122,10 +152,10 @@ export function App() {
         ? data.tokens.slice(0, 3).map(t => `${t.name} (${t.symbol})`)
         : ['Uniswap v3', 'Aave v3', 'Lido Finance'],
       breakdown: [
-        { label: 'Security & Approvals', score: 92, maxScore: 100, category: 'Security' },
-        { label: 'DeFi Liquidity & Swaps', score: Math.min(100, 60 + data.tokens.length * 8), maxScore: 100, category: 'DeFi Activity' },
-        { label: 'NFT Portfolio Quality', score: Math.min(100, 50 + data.nfts.length * 15), maxScore: 100, category: 'NFT Activity' },
-        { label: 'Governance & DAO Activity', score: 75, maxScore: 100, category: 'Governance' },
+        { label: 'Security & Approvals', score: 92, maxScore: 100, category: 'Security', color: '#00F0FF' },
+        { label: 'DeFi Liquidity & Swaps', score: Math.min(100, 60 + data.tokens.length * 8), maxScore: 100, category: 'DeFi Activity', color: '#00FF66' },
+        { label: 'NFT Portfolio Quality', score: Math.min(100, 50 + data.nfts.length * 15), maxScore: 100, category: 'NFT Activity', color: '#8B5CF6' },
+        { label: 'Governance & DAO Activity', score: 75, maxScore: 100, category: 'Governance', color: '#F59E0B' },
       ],
       reputationHistory: [
         { date: 'Jan', score: 62 },
@@ -165,10 +195,9 @@ export function App() {
           event: `Live Wallet Synchronization (${data.chainName})`,
           date: 'Just now',
           impact: 'positive'
-        },
-        ...MOCK_WALLETS[DEFAULT_WALLET_ADDRESS].timeline
+        }
       ],
-      recommendations: MOCK_WALLETS[DEFAULT_WALLET_ADDRESS].recommendations
+      recommendations: defaultWalletProfile.recommendations || []
     };
 
     setCurrentWallet(profile);
@@ -205,7 +234,8 @@ export function App() {
 
   const handleRevokeApproval = (approvalId: string) => {
     setCurrentWallet((prev) => {
-      const updatedApprovals = prev.approvals.map((app) =>
+      const prevApprovals = prev.approvals || [];
+      const updatedApprovals = prevApprovals.map((app) =>
         app.id === approvalId ? { ...app, isRevoked: true, state: 'Passive' as const } : app
       );
       const newScore = Math.min(100, prev.score + 15);
@@ -230,7 +260,8 @@ export function App() {
   const handleCompleteTask = (taskId: string) => {
     setCurrentWallet((prev) => {
       let ptsGained = 0;
-      const updatedRecs = prev.recommendations.map((r) => {
+      const prevRecs = prev.recommendations || [];
+      const updatedRecs = prevRecs.map((r) => {
         if (r.id === taskId) {
           ptsGained = r.impactPoints;
           return { ...r, completed: true };
@@ -325,8 +356,8 @@ export function App() {
                 <div className="cursor-pointer" onClick={() => setActiveTab('security')}>
                   <StatCard
                     title="Reputation Score"
-                    value={`${currentWallet.score}/100`}
-                    subtitle={`Grade ${currentWallet.grade} • Verified`}
+                    value={`${currentWallet?.score || 84}/100`}
+                    subtitle={`Grade ${currentWallet?.grade || 'A'} • Verified`}
                     icon={Shield}
                     iconBgColor="bg-brand-cyan/20"
                     iconColor="text-brand-cyan"
@@ -337,7 +368,7 @@ export function App() {
                 <div className="cursor-pointer" onClick={() => setActiveTab('transactions')}>
                   <StatCard
                     title="Total Gas Spent"
-                    value={`$${currentWallet.totalGasUsd.toFixed(2)} USD`}
+                    value={`$${(currentWallet?.totalGasUsd || 42.50).toFixed(2)} USD`}
                     subtitle="Multi-Chain Gas Spent"
                     icon={Zap}
                     iconBgColor="bg-brand-green/20"
@@ -349,7 +380,7 @@ export function App() {
                 <div className="cursor-pointer" onClick={() => setActiveTab('badge')}>
                   <StatCard
                     title="NFT Badge"
-                    value={currentWallet.totalNfts}
+                    value={currentWallet?.totalNfts || 1}
                     subtitle="Soulbound NFT Certificate"
                     icon={Image}
                     iconBgColor="bg-brand-purple/20"
@@ -361,7 +392,7 @@ export function App() {
                 <div className="cursor-pointer" onClick={() => setActiveTab('portfolio')}>
                   <StatCard
                     title="Portfolio Value"
-                    value={isConnected ? `$${(currentWallet.portfolioValueUsd > 0 ? currentWallet.portfolioValueUsd : 0.26).toFixed(2)} USD` : '$12,450.00 USD'}
+                    value={isConnected ? `$${(currentWallet?.portfolioValueUsd || 0.26).toFixed(2)} USD` : '$12,450.00 USD'}
                     subtitle={isConnected ? 'Live USD Value' : 'Portfolio Tracking'}
                     icon={DollarSign}
                     iconBgColor="bg-amber-500/20"
@@ -375,10 +406,10 @@ export function App() {
               {/* Reputation Over Time & Breakdown Charts */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6">
                 <div className="lg:col-span-2">
-                  <ReputationChart data={currentWallet.reputationHistory} />
+                  <ReputationChart data={currentWallet?.reputationHistory || []} />
                 </div>
                 <div>
-                  <ReputationBreakdown breakdown={currentWallet.breakdown} />
+                  <ReputationBreakdown breakdown={currentWallet?.breakdown || []} />
                 </div>
               </div>
 
@@ -452,7 +483,7 @@ export function App() {
               <Sparkles className="w-12 h-12 text-brand-cyan mx-auto mb-4 animate-pulse" />
               <h2 className="text-xl font-bold text-white capitalize">{activeTab} Module</h2>
               <p className="text-xs text-slate-400 max-w-md mx-auto mt-2 leading-relaxed">
-                ReputationOS autonomous agent is monitoring this module. All on-chain assets and telemetry for address {currentWallet.address} are continuously synchronized.
+                ReputationOS autonomous agent is monitoring this module. All on-chain assets and telemetry for address {currentWallet?.address || '0x...'} are continuously synchronized.
               </p>
               <button
                 onClick={() => setActiveTab('overview')}
