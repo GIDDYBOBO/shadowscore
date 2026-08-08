@@ -511,6 +511,19 @@ export const connectAndFetchRealWalletData = async (): Promise<RealWalletFullDat
   return fetchFullWalletTelemetry(address, true);
 };
 
+export const connectEthereumWallet = async (): Promise<RealWalletFullData> => {
+  return connectAndFetchRealWalletData();
+};
+
+export const connectSolanaWallet = async (): Promise<RealWalletFullData> => {
+  if (!hasSolanaProvider()) {
+    throw new Error('Phantom Solana wallet extension not detected.');
+  }
+  const resp = await window.solana.connect();
+  const address = resp.publicKey.toString();
+  return fetchFullWalletTelemetry(address, true);
+};
+
 // Fetch telemetry for any address in parallel (Sub-150ms Instant Response)
 export const fetchFullWalletTelemetry = async (address: string, isRealConnection: boolean = false): Promise<RealWalletFullData> => {
   let chainIdHex = '0x1';

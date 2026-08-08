@@ -8,7 +8,8 @@ import {
   SunMoon,
   LineChart,
   Scale,
-  FileText
+  FileText,
+  X
 } from 'lucide-react';
 
 export type NavTab = 
@@ -30,6 +31,8 @@ interface SidebarProps {
   onOpenAiAssistant: () => void;
   darkMode: boolean;
   setDarkMode: (val: boolean) => void;
+  isMobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -37,6 +40,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setActiveTab,
   darkMode,
   setDarkMode,
+  isMobileOpen = false,
+  onCloseMobile,
 }) => {
   const navItems: { id: NavTab; label: string; icon: React.ElementType; badge?: string }[] = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -50,77 +55,99 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   return (
-    <aside className="w-64 bg-[#0B0E14] border-r border-dark-border flex flex-col justify-between p-4 h-screen sticky top-0 z-30 shrink-0 font-sans">
-      <div>
-        <div className="flex items-center space-x-3 px-2 py-3 mb-4">
-          <div className="relative w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-blue via-brand-cyan to-brand-purple p-[1.5px]">
-            <div className="w-full h-full bg-[#0B0E14] rounded-[10px] flex items-center justify-center">
-              <span className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-brand-cyan to-brand-sky text-xl">S</span>
-            </div>
-          </div>
-          <div>
-            <div className="font-bold text-lg text-white tracking-wide flex items-center gap-1.5 font-mono">
-              ShadowScore
-            </div>
-            <p className="text-xs text-slate-400 font-medium">AI Reputation Engine</p>
-          </div>
-        </div>
+    <>
+      {/* Mobile Backdrop Overlay */}
+      {isMobileOpen && (
+        <div
+          onClick={onCloseMobile}
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40 lg:hidden transition-opacity"
+        />
+      )}
 
-        {/* Navigation Items (Strict 8 items) */}
-        <nav className="space-y-1 max-h-[calc(100vh-180px)] overflow-y-auto pr-1">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl font-medium text-xs transition-all duration-200 ${
-                  isActive
-                    ? 'bg-brand-blue/15 text-brand-cyan border border-brand-cyan/25 shadow-glow-cyan/20 font-bold'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-dark-700/50'
-                }`}
-              >
-                <div className="flex items-center space-x-2.5">
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-brand-cyan' : 'text-slate-400'}`} />
-                  <span>{item.label}</span>
+      <aside
+        className={`fixed lg:sticky top-0 left-0 z-50 lg:z-30 h-screen w-64 bg-[#0B0E14] border-r border-dark-border flex flex-col justify-between p-4 font-sans transition-transform duration-300 ease-in-out shrink-0 ${
+          isMobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0'
+        }`}
+      >
+        <div>
+          {/* Logo & Brand + Mobile Close Button */}
+          <div className="flex items-center justify-between px-2 py-3 mb-4">
+            <div className="flex items-center space-x-3">
+              <div className="relative w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-blue via-brand-cyan to-brand-purple p-[1.5px] shadow-glow-cyan/20">
+                <div className="w-full h-full bg-[#0B0E14] rounded-[10px] flex items-center justify-center">
+                  <span className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-brand-cyan to-brand-sky text-lg">S</span>
                 </div>
-                {item.badge && (
-                  <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-semibold ${
-                    item.badge.includes('Active') 
-                      ? 'bg-brand-danger/20 text-brand-danger border border-brand-danger/30' 
-                      : 'bg-brand-cyan/20 text-brand-cyan'
-                  }`}>
-                    {item.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
-      </div>
+              </div>
+              <div>
+                <div className="font-bold text-base text-white tracking-wide flex items-center gap-1.5 font-mono">
+                  ShadowScore
+                </div>
+                <p className="text-[10px] text-slate-400 font-medium">AI Reputation Engine</p>
+              </div>
+            </div>
 
-      {/* Bottom Section: Theme Switcher Toggle */}
-      <div className="pt-3 border-t border-dark-border">
-        <div className="flex items-center justify-between px-3 py-2 bg-dark-700/40 rounded-xl text-xs font-medium text-slate-400">
-          <div className="flex items-center space-x-2">
-            <SunMoon className="w-4 h-4 text-brand-cyan" />
-            <span>{darkMode ? 'Dark Mode' : 'Light Mode (Cream)'}</span>
+            {/* Mobile Close Button */}
+            <button
+              onClick={onCloseMobile}
+              className="p-1.5 rounded-xl bg-dark-900 text-slate-400 hover:text-white lg:hidden"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
-          <button
-            onClick={() => setDarkMode(!darkMode)}
-            className={`w-9 h-4.5 flex items-center rounded-full p-0.5 transition-colors ${
-              darkMode ? 'bg-brand-cyan' : 'bg-brand-blue'
-            }`}
-          >
-            <div
-              className={`bg-dark-900 w-3.5 h-3.5 rounded-full shadow-md transform transition-transform ${
-                darkMode ? 'translate-x-4' : 'translate-x-0'
-              }`}
-            />
-          </button>
+
+          {/* Navigation Items */}
+          <nav className="space-y-1 max-h-[calc(100vh-180px)] overflow-y-auto pr-1 no-scrollbar">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setActiveTab(item.id);
+                    if (onCloseMobile) onCloseMobile();
+                  }}
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                    isActive
+                      ? 'bg-brand-blue text-white shadow-glow-blue/20 font-bold'
+                      : 'text-slate-400 hover:text-white hover:bg-dark-800'
+                  }`}
+                >
+                  <div className="flex items-center space-x-3">
+                    <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                    <span>{item.label}</span>
+                  </div>
+                  {item.badge && (
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-brand-cyan/20 text-brand-cyan border border-brand-cyan/30">
+                      {item.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
         </div>
-      </div>
-    </aside>
+
+        {/* Footer: Theme Toggle & AI Status */}
+        <div className="pt-3 border-t border-dark-border space-y-2">
+          <div className="flex items-center justify-between px-2 py-1.5 bg-dark-900/90 rounded-xl border border-dark-border text-xs">
+            <span className="text-[11px] text-slate-400 flex items-center gap-1.5">
+              <SunMoon className="w-3.5 h-3.5 text-brand-cyan" />
+              <span>Theme</span>
+            </span>
+            <button
+              onClick={() => setDarkMode(!darkMode)}
+              className="px-2.5 py-1 rounded-lg bg-dark-800 text-[10px] font-bold text-white hover:bg-brand-cyan hover:text-dark-900 transition-all font-mono"
+            >
+              {darkMode ? 'Dark' : 'Light'}
+            </button>
+          </div>
+
+          <div className="text-[10px] text-slate-500 font-mono text-center">
+            v2.4 Production • Multi-Chain Active
+          </div>
+        </div>
+      </aside>
+    </>
   );
 };

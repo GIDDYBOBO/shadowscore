@@ -1,202 +1,169 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { 
+  Download, 
+  Sparkles, 
+  X,
+  Layers,
+  Activity,
+  Shield,
+  Zap,
+  Image,
+  DollarSign,
+  TrendingUp
+} from 'lucide-react';
 import { Sidebar, type NavTab } from './components/Sidebar';
 import { Header } from './components/Header';
-import { ExecutiveSummary } from './components/ExecutiveSummary';
-import { RadialScoreGauge } from './components/RadialScoreGauge';
-import { WalletIdentityCard } from './components/WalletIdentityCard';
-import { RiskOverviewCard } from './components/RiskOverviewCard';
+import { SubCategoryBar, type SubCategoryFilter } from './components/SubCategoryBar';
 import { StatCard } from './components/StatCard';
 import { ReputationChart } from './components/ReputationChart';
 import { ReputationBreakdown } from './components/ReputationBreakdown';
-import { AutonomousAlerts } from './components/AutonomousAlerts';
-import { SecurityGuard } from './components/SecurityGuard';
-import { AiAssistantModal } from './components/AiAssistantModal';
-import { FloatingAiCopilot } from './components/FloatingAiCopilot';
 import { TimelineRecommendations } from './components/TimelineRecommendations';
-import { EmployerReportView } from './components/EmployerReportView';
+import { AutonomousAlerts } from './components/AutonomousAlerts';
+import { ReputationBadgeNFT } from './components/ReputationBadgeNFT';
 import { PortfolioView } from './components/PortfolioView';
-import { SubCategoryBar, type SubCategoryFilter } from './components/SubCategoryBar';
-import { NetPortfolioSection } from './components/NetPortfolioSection';
 import { DexScreenerMonitor } from './components/DexScreenerMonitor';
-import { SocialNewsView } from './components/SocialNewsView';
-import { LegalDocsView } from './components/LegalDocsView';
-import { AdvancedReportsView } from './components/AdvancedReportsView';
-import { TransactionsView } from './components/TransactionsView';
 import { DaoGovernanceView } from './components/DaoGovernanceView';
 import { FundingLiquidityView } from './components/FundingLiquidityView';
 import { RiskYieldView } from './components/RiskYieldView';
-import { ReputationBadgeNFT } from './components/ReputationBadgeNFT';
+import { SocialNewsView } from './components/SocialNewsView';
+import { TransactionsView } from './components/TransactionsView';
+import { SecurityGuard } from './components/SecurityGuard';
+import { EmployerReportView } from './components/EmployerReportView';
+import { LegalDocsView } from './components/LegalDocsView';
+import { AdvancedReportsView } from './components/AdvancedReportsView';
+import { LandingPage } from './components/LandingPage';
 import { Footer } from './components/Footer';
+import { AiAssistantModal } from './components/AiAssistantModal';
+import { FloatingAiCopilot } from './components/FloatingAiCopilot';
+
 import { MOCK_WALLETS, DEFAULT_WALLET_ADDRESS } from './data/mockWalletData';
 import type { WalletProfile } from './types/reputation';
 import { 
-  connectAndFetchRealWalletData,
-  connectAndFetchSolanaWalletData, 
+  connectEthereumWallet, 
+  connectSolanaWallet, 
   fetchFullWalletTelemetry,
-  subscribeToWalletEvents, 
   type RealWalletFullData 
 } from './utils/web3Provider';
-import { ArrowLeftRight, Coins, Image, DollarSign, Sparkles, X, Download } from 'lucide-react';
-
-import { LandingPage } from './components/LandingPage';
 
 export function App() {
-  const [viewState, setViewState] = useState<'landing' | 'dashboard'>('landing');
+  const [viewState, setViewState] = useState<'landing' | 'dashboard'>('dashboard');
   const [activeTab, setActiveTab] = useState<NavTab>('overview');
   const [selectedSubCategory, setSelectedSubCategory] = useState<SubCategoryFilter>('Social');
-  const [currentWallet, setCurrentWallet] = useState<WalletProfile>(MOCK_WALLETS[DEFAULT_WALLET_ADDRESS]);
-  const [realWalletData, setRealWalletData] = useState<RealWalletFullData | null>(null);
-  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Active wallet state
+  const [currentWallet, setCurrentWallet] = useState<WalletProfile>(MOCK_WALLETS[DEFAULT_WALLET_ADDRESS]);
   const [isMonitoringActive, setIsMonitoringActive] = useState(true);
-  const [unreadAlertsCount, setUnreadAlertsCount] = useState(1);
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [toastAlert, setToastAlert] = useState<string | null>(null);
 
+  // Real Web3 wallet state
+  const [realWalletData, setRealWalletData] = useState<RealWalletFullData | null>(null);
   const isConnected = Boolean(realWalletData);
 
-  // Sync document root class for Dark Mode vs Warm Cream Light Mode
-  useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark', 'dark-theme');
-      document.documentElement.classList.remove('light', 'light-theme');
-    } else {
-      document.documentElement.classList.add('light', 'light-theme');
-      document.documentElement.classList.remove('dark', 'dark-theme');
-    }
-  }, [darkMode]);
+  const unreadAlertsCount = currentWallet.approvals.filter(a => a.state === 'Active' && a.riskScore > 50).length;
 
-  // Subscribe to Web3 events
-  useEffect(() => {
-    const unsubscribe = subscribeToWalletEvents(
-      async (accounts) => {
-        if (accounts.length > 0) {
-          const telemetry = await fetchFullWalletTelemetry(accounts[0], true);
-          setRealWalletData(telemetry);
-          applyRealWalletTelemetry(telemetry);
-        } else {
-          setRealWalletData(null);
-          setCurrentWallet(MOCK_WALLETS[DEFAULT_WALLET_ADDRESS]);
-        }
-      },
-      async (_chainIdHex) => {
-        if (realWalletData?.address) {
-          const telemetry = await fetchFullWalletTelemetry(realWalletData.address, true);
-          setRealWalletData(telemetry);
-          applyRealWalletTelemetry(telemetry);
-        }
-      }
-    );
-    return () => unsubscribe();
-  }, [realWalletData?.address]);
-
-  // Connect Real Web3 EVM Wallet
+  // Real Web3 Wallet Connect Handlers
   const handleConnectRealWallet = async () => {
-    const telemetry = await connectAndFetchRealWalletData();
-    setRealWalletData(telemetry);
-    applyRealWalletTelemetry(telemetry);
-    setToastAlert(`🌐 EVM Web3 Wallet Connected: ${telemetry.address.slice(0, 6)}...${telemetry.address.slice(-4)} (${telemetry.providerName})`);
-    setTimeout(() => setToastAlert(null), 5000);
+    try {
+      const data = await connectEthereumWallet();
+      setRealWalletData(data);
+      applyRealWalletTelemetry(data);
+      setToastAlert(`⚡ Live Web3 Wallet Connected: ${data.address.slice(0, 6)}...${data.address.slice(-4)} (${data.chainName})`);
+      setTimeout(() => setToastAlert(null), 5000);
+    } catch (err: any) {
+      setToastAlert(`❌ Wallet Connect Error: ${err.message}`);
+      setTimeout(() => setToastAlert(null), 5000);
+    }
   };
 
-  // Connect Real Solana Web3 Wallet (Phantom / Solflare / Backpack)
   const handleConnectSolanaWallet = async () => {
-    const telemetry = await connectAndFetchSolanaWalletData();
-    setRealWalletData(telemetry);
-    applyRealWalletTelemetry(telemetry);
-    setToastAlert(`🟣 Solana Wallet Connected: ${telemetry.address.slice(0, 6)}...${telemetry.address.slice(-4)} (${telemetry.providerName})`);
-    setTimeout(() => setToastAlert(null), 5000);
+    try {
+      const data = await connectSolanaWallet();
+      setRealWalletData(data);
+      applyRealWalletTelemetry(data);
+      setToastAlert(`⚡ Phantom Solana Wallet Connected: ${data.address.slice(0, 6)}...${data.address.slice(-4)}`);
+      setTimeout(() => setToastAlert(null), 5000);
+    } catch (err: any) {
+      setToastAlert(`❌ Solana Connect Error: ${err.message}`);
+      setTimeout(() => setToastAlert(null), 5000);
+    }
   };
 
-  // Disconnect Real Wallet
   const handleDisconnectRealWallet = () => {
     setRealWalletData(null);
     setCurrentWallet(MOCK_WALLETS[DEFAULT_WALLET_ADDRESS]);
-    setToastAlert('Disconnected from browser wallet. Reverted to standard mode.');
-    setTimeout(() => setToastAlert(null), 4000);
+    setToastAlert('🔌 Wallet disconnected. Switched to demo persona.');
+    setTimeout(() => setToastAlert(null), 3000);
   };
 
-  // Apply real wallet telemetry
-  const applyRealWalletTelemetry = (telemetry: RealWalletFullData) => {
-    const txCount = telemetry.transactionCount;
-    const baseScore = Math.min(96, Math.max(68, 72 + Math.floor(txCount / 4) + (parseFloat(telemetry.balanceEth) > 0.5 ? 8 : 2)));
+  const applyRealWalletTelemetry = (data: RealWalletFullData) => {
+    const rawScore = Math.min(100, Math.max(35, Math.round(
+      50 + 
+      (data.txCount > 5 ? 15 : 5) + 
+      (parseFloat(data.nativeBalance) > 0.05 ? 15 : 5) + 
+      (data.nfts.length > 0 ? 10 : 0) +
+      (data.tokens.length > 2 ? 10 : 0)
+    )));
+
+    const grade = rawScore >= 90 ? 'A+' : rawScore >= 80 ? 'B+' : rawScore >= 70 ? 'B' : 'C';
 
     const profile: WalletProfile = {
-      address: telemetry.address,
-      ensName: telemetry.address.endsWith('.eth') ? telemetry.address : `${telemetry.address.slice(0, 6)}...${telemetry.address.slice(-4)}`,
-      network: telemetry.networkName,
-      walletAge: txCount > 100 ? '2.4 years' : txCount > 20 ? '9 months' : '2 months',
-      firstActivity: 'Oct 14, 2023',
+      address: data.address,
+      label: data.ensName || `${data.chainName} Connected Wallet`,
+      score: rawScore,
+      grade: grade as any,
       status: 'Healthy',
-      lastUpdated: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      score: baseScore,
-      grade: baseScore >= 90 ? 'A+' : baseScore >= 80 ? 'B+' : 'B',
-      riskLevel: 'Low',
-      riskStatusText: 'Verified On-Chain Account',
-      percentile: baseScore >= 90 ? 'Top 3%' : 'Top 14%',
-      totalTransactions: txCount,
-      totalTokens: telemetry.tokens.length,
-      totalNfts: telemetry.nfts.length,
-      portfolioValueUsd: telemetry.portfolioValueUsd > 0 ? telemetry.portfolioValueUsd : 0.26,
-      executiveSummary: `Autonomous telemetry scan active for ${telemetry.address} on ${telemetry.networkName}. Wallet holds ${telemetry.balanceEth} ETH native balance ($${Math.round(parseFloat(telemetry.balanceEth) * telemetry.ethPriceUsd).toLocaleString()} USD) across ${telemetry.tokens.length} verified tokens and ${telemetry.nfts.length} NFT collections.`,
-      healthFactor: 2.8,
-      collateralRatioPct: 54,
-      riskFactors: [
-        { id: 'rf-1', label: `Verified ${telemetry.providerName} telemetry`, positive: true },
-        { id: 'rf-2', label: `${txCount} confirmed on-chain transactions`, positive: true },
-        { id: 'rf-3', label: `Live portfolio value: $${telemetry.portfolioValueUsd.toFixed(2)}`, positive: true }
-      ],
+      totalGasUsd: 42.50,
+      totalNfts: data.nfts.length || 1,
+      portfolioValueUsd: data.portfolioValueUsd || parseFloat(data.nativeBalance) * (data.chainName.includes('Solana') ? 142.5 : 1944.79),
+      topProtocols: data.tokens.length > 0 
+        ? data.tokens.slice(0, 3).map(t => `${t.name} (${t.symbol})`)
+        : ['Uniswap v3', 'Aave v3', 'Lido Finance'],
       breakdown: [
-        { category: 'Transaction History', score: Math.min(98, 82 + Math.floor(txCount / 10)), color: '#00F0FF' },
-        { category: 'DeFi Activity', score: 78, color: '#3B82F6' },
-        { category: 'Security & Risk', score: 92, color: '#10B981' },
-        { category: 'NFT & Social', score: 75, color: '#8B5CF6' }
+        { label: 'Security & Approvals', score: 92, maxScore: 100, category: 'Security' },
+        { label: 'DeFi Liquidity & Swaps', score: Math.min(100, 60 + data.tokens.length * 8), maxScore: 100, category: 'DeFi Activity' },
+        { label: 'NFT Portfolio Quality', score: Math.min(100, 50 + data.nfts.length * 15), maxScore: 100, category: 'NFT Activity' },
+        { label: 'Governance & DAO Activity', score: 75, maxScore: 100, category: 'Governance' },
       ],
       reputationHistory: [
-        { date: "Feb '26", score: baseScore - 18 },
-        { date: "Mar '26", score: baseScore - 12 },
-        { date: "Apr '26", score: baseScore - 8 },
-        { date: "May '26", score: baseScore - 3 },
-        { date: "Jun '26", score: baseScore }
+        { date: 'Jan', score: 62 },
+        { date: 'Feb', score: 68 },
+        { date: 'Mar', score: 74 },
+        { date: 'Apr', score: 79 },
+        { date: 'May', score: 83 },
+        { date: 'Jun', score: rawScore },
       ],
-      portfolioHistory: [
-        { date: 'Jan', valueUsd: 0.12 },
-        { date: 'Feb', valueUsd: 0.15 },
-        { date: 'Mar', valueUsd: 0.18 },
-        { date: 'Apr', valueUsd: 0.22 },
-        { date: 'May', valueUsd: 0.24 },
-        { date: 'Jun', valueUsd: telemetry.portfolioValueUsd > 0 ? telemetry.portfolioValueUsd : 0.26 }
-      ],
-      transactions: telemetry.transactions.map((tx) => ({
-        id: tx.id,
-        hash: tx.hash,
-        type: tx.type,
-        timestamp: tx.timestamp,
-        counterparty: tx.counterparty,
-        value: tx.value,
-        status: tx.status,
-        riskScore: tx.riskScore,
-        aiNote: tx.aiNote
-      })),
-      approvals: MOCK_WALLETS[DEFAULT_WALLET_ADDRESS].approvals,
-      connectedDApps: [
+      approvals: [
         {
-          id: 'd1',
-          name: 'Uniswap v3 dApp',
-          url: 'app.uniswap.org',
-          icon: '🦄',
-          connectedAt: '2 hours ago',
-          permissions: ['Read Address', 'Request Signature'],
-          riskLevel: 'Low'
+          id: 'real-app-1',
+          contractName: 'Uniswap Universal Router',
+          contractAddress: '0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD',
+          tokenName: 'USDC / WETH',
+          allowance: 'Unlimited',
+          riskScore: 35,
+          riskLevel: 'Low',
+          state: 'Active',
+          lastUsed: 'Just now'
+        }
+      ],
+      activeDApps: [
+        {
+          id: 'dapp-real-1',
+          name: `${data.chainName} Ecosystem`,
+          url: 'https://app.uniswap.org',
+          connectedSince: 'Connected now',
+          sessionAgeDays: 0,
+          permissions: ['View balance', 'Request signatures'],
+          riskLevel: 'Safe'
         }
       ],
       timeline: [
         {
-          id: Date.now().toString(),
+          id: 'tl-real-1',
+          event: `Live Wallet Synchronization (${data.chainName})`,
           date: 'Just now',
-          change: 10,
-          title: 'Autonomous Wallet Telemetry Scan',
-          description: `Audited ${txCount} transactions and $${(telemetry.portfolioValueUsd > 0 ? telemetry.portfolioValueUsd : 0.26).toFixed(2)} portfolio balance.`,
-          category: 'Security',
           impact: 'positive'
         },
         ...MOCK_WALLETS[DEFAULT_WALLET_ADDRESS].timeline
@@ -207,7 +174,6 @@ export function App() {
     setCurrentWallet(profile);
   };
 
-  // Detailed Wallet Address Search
   const handleSelectWallet = async (address: string) => {
     setRealWalletData(null);
     if (MOCK_WALLETS[address]) {
@@ -220,7 +186,6 @@ export function App() {
     setTimeout(() => setToastAlert(null), 4000);
   };
 
-  // Sub-category pill selection callback
   const handleSelectSubCategory = (cat: SubCategoryFilter) => {
     setSelectedSubCategory(cat);
     if (cat === 'Social') {
@@ -290,15 +255,19 @@ export function App() {
 
   return (
     <div className={`min-h-screen flex ${darkMode ? 'dark dark-theme bg-[#0B0E14] text-slate-100' : 'light light-theme bg-[#F5F4EE] text-slate-900'}`}>
+      {/* Responsive Sidebar with Mobile Drawer */}
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onOpenAiAssistant={() => setIsAiModalOpen(true)}
         darkMode={darkMode}
         setDarkMode={setDarkMode}
+        isMobileOpen={isMobileMenuOpen}
+        onCloseMobile={() => setIsMobileMenuOpen(false)}
       />
 
       <div className="flex-1 flex flex-col min-w-0">
+        {/* Responsive Header with Mobile Menu Toggle */}
         <Header
           currentWallet={currentWallet}
           onSelectWallet={handleSelectWallet}
@@ -312,12 +281,13 @@ export function App() {
           onConnectSolanaWallet={handleConnectSolanaWallet}
           onDisconnectRealWallet={handleDisconnectRealWallet}
           onNavigateToLanding={() => setViewState('landing')}
+          onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         />
 
         {toastAlert && (
-          <div className="mx-8 mt-4 p-4 rounded-2xl bg-brand-cyan/20 border border-brand-cyan/40 text-white flex items-center justify-between shadow-2xl animate-in slide-in-from-top">
-            <div className="flex items-center space-x-3 text-xs font-semibold">
-              <Sparkles className="w-5 h-5 text-brand-cyan shrink-0 animate-bounce" />
+          <div className="mx-4 sm:mx-8 mt-4 p-3.5 sm:p-4 rounded-2xl bg-brand-cyan/20 border border-brand-cyan/40 text-white flex items-center justify-between shadow-2xl animate-in slide-in-from-top text-xs">
+            <div className="flex items-center space-x-2.5 font-semibold">
+              <Sparkles className="w-4 h-4 text-brand-cyan shrink-0 animate-bounce" />
               <span>{toastAlert}</span>
             </div>
             <button
@@ -329,7 +299,8 @@ export function App() {
           </div>
         )}
 
-        <main className="p-8 flex-1 overflow-y-auto">
+        {/* Fluid Proportional Main Container */}
+        <main className="p-4 sm:p-6 lg:p-8 flex-1 overflow-y-auto max-w-[1440px] mx-auto w-full space-y-6">
           {/* Sub-category Filter Bar */}
           <SubCategoryBar
             selectedCategory={selectedSubCategory}
@@ -337,66 +308,41 @@ export function App() {
           />
 
           {activeTab === 'overview' && (
-            <div>
+            <div className="space-y-6">
               {/* Top Action Bar with 1-Click Export PDF Button */}
-              <div className="flex justify-end mb-4">
+              <div className="flex justify-end">
                 <button
                   onClick={handleExportPDFOverview}
-                  className="px-4 py-2 bg-gradient-to-r from-brand-blue to-brand-cyan hover:from-blue-600 hover:to-cyan-400 text-white font-bold rounded-xl text-xs flex items-center space-x-2 transition-all shadow-glow-blue/20"
+                  className="px-3.5 py-2 bg-gradient-to-r from-brand-blue to-brand-cyan hover:from-blue-600 hover:to-cyan-400 text-white font-bold rounded-xl text-xs flex items-center space-x-2 transition-all shadow-glow-blue/20"
                 >
-                  <Download className="w-4 h-4" />
-                  <span>Export Full PDF Audit Report</span>
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Export PDF Audit</span>
                 </button>
               </div>
 
-              {/* Executive Summary Banner */}
-              <ExecutiveSummary wallet={currentWallet} isConnected={isConnected} />
-
-              {/* Net Portfolio & Health Factor Section */}
-              <NetPortfolioSection
-                wallet={currentWallet}
-                isConnected={isConnected}
-                realWalletData={realWalletData}
-                onInspectContract={() => setActiveTab('security')}
-                onOpenAiAssistant={() => setIsAiModalOpen(true)}
-              />
-
-              {/* Core Dashboard Cards Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <RadialScoreGauge wallet={currentWallet} />
-                <WalletIdentityCard
-                  wallet={currentWallet}
-                  onOpenReport={() => setActiveTab('employer')}
-                />
-                <RiskOverviewCard
-                  wallet={currentWallet}
-                  onViewDetails={() => setActiveTab('security')}
-                />
-              </div>
-
-              {/* 4 Stat Cards Row */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-                <div className="cursor-pointer" onClick={() => setActiveTab('transactions')}>
+              {/* 4 Stat Cards: Responsive Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+                <div className="cursor-pointer" onClick={() => setActiveTab('security')}>
                   <StatCard
-                    title="Transactions"
-                    value={currentWallet.totalTransactions}
-                    subtitle="Total Transactions"
-                    icon={ArrowLeftRight}
-                    iconBgColor="bg-blue-600/20"
-                    iconColor="text-brand-blue"
-                    sparklineColor="#3B82F6"
-                    sparklinePath="M 2 20 L 15 14 L 30 18 L 45 6 L 58 2"
+                    title="Reputation Score"
+                    value={`${currentWallet.score}/100`}
+                    subtitle={`Grade ${currentWallet.grade} • Verified`}
+                    icon={Shield}
+                    iconBgColor="bg-brand-cyan/20"
+                    iconColor="text-brand-cyan"
+                    sparklineColor="#00F0FF"
+                    sparklinePath="M 2 20 L 15 14 L 30 18 L 45 8 L 58 2"
                   />
                 </div>
-                <div className="cursor-pointer" onClick={() => setActiveTab('portfolio')}>
+                <div className="cursor-pointer" onClick={() => setActiveTab('transactions')}>
                   <StatCard
-                    title="Token Holdings"
-                    value={`${currentWallet.totalTokens} Tokens`}
-                    subtitle="Click to view content"
-                    icon={Coins}
+                    title="Total Gas Spent"
+                    value={`$${currentWallet.totalGasUsd.toFixed(2)} USD`}
+                    subtitle="Multi-Chain Gas Spent"
+                    icon={Zap}
                     iconBgColor="bg-brand-green/20"
                     iconColor="text-brand-green"
-                    sparklineColor="#10B981"
+                    sparklineColor="#00FF66"
                     sparklinePath="M 2 18 L 15 12 L 30 15 L 45 8 L 58 4"
                   />
                 </div>
@@ -415,8 +361,8 @@ export function App() {
                 <div className="cursor-pointer" onClick={() => setActiveTab('portfolio')}>
                   <StatCard
                     title="Portfolio Value"
-                    value={isConnected ? `$${(currentWallet.portfolioValueUsd > 0 ? currentWallet.portfolioValueUsd : 0.26).toFixed(2)} USD` : '_ _ _ USD'}
-                    subtitle={isConnected ? 'Live USD Value' : 'Wallet Unconnected'}
+                    value={isConnected ? `$${(currentWallet.portfolioValueUsd > 0 ? currentWallet.portfolioValueUsd : 0.26).toFixed(2)} USD` : '$12,450.00 USD'}
+                    subtitle={isConnected ? 'Live USD Value' : 'Portfolio Tracking'}
                     icon={DollarSign}
                     iconBgColor="bg-amber-500/20"
                     iconColor="text-amber-400"
@@ -427,7 +373,7 @@ export function App() {
               </div>
 
               {/* Reputation Over Time & Breakdown Charts */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6">
                 <div className="lg:col-span-2">
                   <ReputationChart data={currentWallet.reputationHistory} />
                 </div>
