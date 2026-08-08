@@ -20,6 +20,17 @@ body, .dark-theme {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+/* Universal High-Contrast Inputs for Both Themes */
+input, select, textarea {
+  color: #F1F5F9 !important;
+  background-color: #0B0E14;
+  caret-color: #00F0FF;
+}
+
+input::placeholder, textarea::placeholder {
+  color: #64748B !important;
+}
+
 /* Glassmorphism Card Style - Dark Mode */
 .glass-card {
   background: rgba(18, 23, 33, 0.85);
@@ -84,6 +95,17 @@ body, .dark-theme {
 .light-theme body {
   background-color: #F5F4EE !important;
   color: #0F172A !important;
+}
+
+.light-theme input, .light-theme select, .light-theme textarea {
+  color: #0F172A !important;
+  background-color: #FFFFFF !important;
+  caret-color: #0284C7;
+  border-color: #CBD5E1 !important;
+}
+
+.light-theme input::placeholder, .light-theme textarea::placeholder {
+  color: #94A3B8 !important;
 }
 
 /* Glassmorphism Card Style - Light Mode */
