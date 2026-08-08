@@ -50,7 +50,7 @@ import {
 export function App() {
   const [viewState, setViewState] = useState<'landing' | 'dashboard'>('dashboard');
   const [activeTab, setActiveTab] = useState<NavTab>('overview');
-  const [selectedSubCategory, setSelectedSubCategory] = useState<SubCategoryFilter>('Social');
+  const [selectedSubCategory, setSelectedSubCategory] = useState<SubCategoryFilter>('Overview');
   const [darkMode, setDarkMode] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -193,7 +193,9 @@ export function App() {
   // Sub-category pill selection callback
   const handleSelectSubCategory = (cat: SubCategoryFilter) => {
     setSelectedSubCategory(cat);
-    if (cat === 'Social') {
+    if (cat === 'Overview') {
+      setActiveTab('overview');
+    } else if (cat === 'Social') {
       setActiveTab('social');
     } else if (cat === 'Markets') {
       setActiveTab('markets');
@@ -256,6 +258,16 @@ export function App() {
     window.print();
   };
 
+  const handleTabSwitch = (tab: NavTab) => {
+    setActiveTab(tab);
+    if (tab === 'overview') setSelectedSubCategory('Overview');
+    else if (tab === 'social') setSelectedSubCategory('Social');
+    else if (tab === 'markets') setSelectedSubCategory('Markets');
+    else if (tab === 'security') setSelectedSubCategory('Security');
+    else if (tab === 'legal') setSelectedSubCategory('Legal');
+    else if (tab === 'advanced') setSelectedSubCategory('Advanced Reports');
+  };
+
   if (viewState === 'landing') {
     return <LandingPage onLaunchDashboard={() => setViewState('dashboard')} />;
   }
@@ -264,7 +276,7 @@ export function App() {
     <div className={`min-h-screen flex ${darkMode ? 'dark dark-theme bg-[#0B0E14] text-slate-100' : 'light light-theme bg-[#F5F4EE] text-slate-900'}`}>
       <Sidebar
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={handleTabSwitch}
         onOpenAiAssistant={() => setIsAiModalOpen(true)}
         darkMode={darkMode}
         setDarkMode={setDarkMode}

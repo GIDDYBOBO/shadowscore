@@ -1,5 +1,6 @@
 import React from 'react';
 import { 
+  LayoutDashboard,
   Users, 
   TrendingUp, 
   ShieldCheck, 
@@ -8,7 +9,7 @@ import {
   Sparkles
 } from 'lucide-react';
 
-export type SubCategoryFilter = 'Social' | 'Markets' | 'Security' | 'Legal' | 'Advanced Reports';
+export type SubCategoryFilter = 'Overview' | 'Social' | 'Markets' | 'Security' | 'Legal' | 'Advanced Reports';
 
 interface SubCategoryBarProps {
   selectedCategory: SubCategoryFilter;
@@ -20,6 +21,7 @@ export const SubCategoryBar: React.FC<SubCategoryBarProps> = ({
   onSelectCategory,
 }) => {
   const categories: { id: SubCategoryFilter; label: string; icon: React.ElementType; badge?: string }[] = [
+    { id: 'Overview', label: 'Overview', icon: LayoutDashboard, badge: 'Dashboard' },
     { id: 'Social', label: 'Social & Feed', icon: Users, badge: 'Live News' },
     { id: 'Markets', label: 'ShadowScore Terminal', icon: TrendingUp, badge: 'Charts' },
     { id: 'Security', label: 'Security & Revoke', icon: ShieldCheck, badge: 'Zero Drainers' },
