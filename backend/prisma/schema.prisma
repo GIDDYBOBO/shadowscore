@@ -515,10 +515,9 @@ model QueryPerformanceLog {
   @@map("query_performance_logs")
 }
 
-// FEATURE 12: SECURITY & ENCRYPTED CREDENTIALS MODEL
 model EncryptedSecretRecord {
   id              String         @id @default(cuid())
-  secretKeyName   String         @unique // ALCHEMY_API_KEY, GEMINI_API_KEY, PRIVATE_RPC
+  secretKeyName   String         @unique
   cipherText      String         @db.Text
   ivHex           String
   authTagHex      String
@@ -534,11 +533,29 @@ model SecurityAuditLog {
   ipAddress       String
   endpoint        String
   threatDetected  Boolean        @default(false)
-  threatCategory  String?        // SQLI_ATTEMPT, XSS_SCRIPT, RPC_KEY_PROBE, RATE_LIMIT_EXCEEDED
-  actionTaken     String         // BLOCKED, SANITIZED, RATE_LIMITED, ALLOWED
+  threatCategory  String?
+  actionTaken     String
   timestamp       DateTime       @default(now())
 
   @@index([threatDetected, timestamp(sort: Desc)])
   @@index([threatCategory])
   @@map("security_audit_logs")
+}
+
+// STEP 4: GECKOTERMINAL & DEXSCREENER OHLCV CANDLESTICK PERSISTENCE MODEL
+model OhlcvCandleRecord {
+  id              String         @id @default(cuid())
+  pairAddress     String
+  timeframe       String         // 1m, 5m, 15m, 1h, 4h, 1D
+  openTime        DateTime
+  openPrice       Decimal        @db.Decimal(18, 8)
+  highPrice       Decimal        @db.Decimal(18, 8)
+  lowPrice        Decimal        @db.Decimal(18, 8)
+  closePrice      Decimal        @db.Decimal(18, 8)
+  volumeUsd       Decimal        @db.Decimal(24, 2)
+  tradesCount     Int            @default(0)
+
+  @@unique([pairAddress, timeframe, openTime])
+  @@index([pairAddress, timeframe, openTime(sort: Desc)])
+  @@map("ohlcv_candle_records")
 }
