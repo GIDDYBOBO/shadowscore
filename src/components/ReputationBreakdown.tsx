@@ -14,25 +14,25 @@ export const ReputationBreakdown: React.FC<ReputationBreakdownProps> = ({ breakd
   ];
 
   return (
-    <div className="glass-card rounded-3xl p-6 h-full flex flex-col justify-between shadow-2xl border border-dark-border">
-      <h3 className="font-bold text-white text-base mb-4 font-mono">Reputation Breakdown</h3>
+    <div className="glass-card rounded-xl p-3.5 sm:p-4 h-full flex flex-col justify-between shadow-card border border-dark-border font-sans">
+      <h3 className="font-bold text-white text-xs sm:text-sm mb-2.5 font-mono">Reputation Breakdown</h3>
 
-      <div className="space-y-4 my-auto">
+      <div className="space-y-3 my-auto">
         {safeBreakdown.map((item, idx) => {
           const color = item.color || (idx === 0 ? '#00F0FF' : idx === 1 ? '#00FF66' : idx === 2 ? '#8B5CF6' : '#F59E0B');
           return (
-            <div key={item.category || idx} className="space-y-1.5 font-mono">
-              <div className="flex items-center justify-between text-xs font-semibold">
+            <div key={item.category || idx} className="space-y-1 font-mono">
+              <div className="flex items-center justify-between text-[10px] font-semibold">
                 <span className="text-slate-300">{item.category}</span>
                 <span className="text-white font-extrabold">{item.score} / {item.maxScore || 100}</span>
               </div>
-              <div className="h-2.5 w-full bg-dark-900 rounded-full overflow-hidden p-0.5 border border-dark-border/60">
+              <div className="h-2 w-full bg-dark-900 rounded-full overflow-hidden p-0.5 border border-dark-border/60">
                 <div
                   className="h-full rounded-full transition-all duration-1000 ease-out"
                   style={{
                     width: `${Math.min(100, Math.max(5, item.score))}%`,
                     backgroundColor: color,
-                    boxShadow: `0 0 12px ${color}80`
+                    boxShadow: `0 0 8px ${color}80`
                   }}
                 />
               </div>

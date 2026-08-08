@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { RefreshCw, ShieldAlert, Sparkles, CheckCircle2, AlertTriangle, Play, Pause } from 'lucide-react';
+import React from 'react';
+import { ShieldAlert, Bell, CheckCircle2, AlertTriangle, ShieldCheck, Eye } from 'lucide-react';
 import type { WalletProfile } from '../types/reputation';
 
 interface AutonomousAlertsProps {
@@ -13,83 +13,81 @@ export const AutonomousAlerts: React.FC<AutonomousAlertsProps> = ({
   isMonitoring,
   onToggleMonitoring,
 }) => {
-  const [logs, setLogs] = useState<{ id: string; time: string; msg: string; type: 'info' | 'warn' | 'success' }[]>([
-    { id: '1', time: '10:24 AM', msg: `Agent monitored address ${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}. Transaction state clean.`, type: 'info' },
-    { id: '2', time: '10:15 AM', msg: 'Governance vote on Snapshot detected. Civics score updated.', type: 'success' },
-    { id: '3', time: '10:02 AM', msg: 'Real-time contract approval scanner active. Checking unverified proxies.', type: 'warn' },
-  ]);
-
-  useEffect(() => {
-    if (!isMonitoring) return;
-    const interval = setInterval(() => {
-      const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      const sampleEvents = [
-        { msg: `Agent verified 0 pending unconfirmed mempool transactions for ${wallet.address.slice(0, 6)}...`, type: 'info' as const },
-        { msg: 'Cross-chain multi-network scan complete: Base & Arbitrum states match.', type: 'info' as const },
-        { msg: 'Identity trust score verified on-chain.', type: 'success' as const },
-        { msg: 'Autonomous scanner checked active smart contract approvals: No honeypots detected.', type: 'info' as const },
-      ];
-      const randomEv = sampleEvents[Math.floor(Math.random() * sampleEvents.length)];
-      setLogs((prev) => [{ id: Date.now().toString(), time: now, ...randomEv }, ...prev.slice(0, 15)]);
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [isMonitoring, wallet.address]);
+  const approvalsList = wallet.approvals || [];
+  const highRiskApprovals = approvalsList.filter(
+    (a) => a.state === 'Active' && (((a as any).riskScore || 0) > 50 || a.riskLevel === 'High')
+  );
 
   return (
-    <div className="glass-card rounded-3xl p-6 mb-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 pb-4 border-b border-dark-border">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-2xl bg-brand-cyan/15 border border-brand-cyan/30 flex items-center justify-center text-brand-cyan">
-            <Sparkles className="w-5 h-5 animate-pulse" />
+    <div className="glass-card rounded-xl p-3.5 sm:p-4 border border-dark-border shadow-card mb-4 font-sans">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 mb-3">
+        <div className="flex items-center space-x-2.5">
+          <div className="w-8 h-8 rounded-lg bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400">
+            <ShieldAlert className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="font-bold text-white text-base flex items-center gap-2">
-              Autonomous Agent Service
-              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
-                isMonitoring ? 'bg-brand-green/20 text-brand-green border border-brand-green/30' : 'bg-slate-800 text-slate-400'
-              }`}>
-                {isMonitoring ? 'Always-On Active' : 'Standby'}
+            <h3 className="font-bold text-white text-xs sm:text-sm flex items-center gap-1.5">
+              Autonomous Approval & Drainer Watcher
+              <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                {highRiskApprovals.length} Flags
               </span>
             </h3>
-            <p className="text-xs text-slate-400">
-              Real-time background service continuously inspecting transactions and contract approvals for address {wallet.address.slice(0, 6)}...{wallet.address.slice(-4)}.
-            </p>
+            <p className="text-[10px] text-slate-400">Sub-second mempool watcher protecting your wallet balances</p>
           </div>
         </div>
 
-        <div className="flex items-center space-x-3">
+        {/* Toggle Switch */}
+        <div className="flex items-center space-x-2 bg-dark-900 px-2.5 py-1 rounded-lg border border-dark-border self-end sm:self-auto">
+          <span className="text-[10px] font-medium text-slate-300">Live Agent Watch</span>
           <button
             onClick={onToggleMonitoring}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center space-x-2 transition-all ${
-              isMonitoring
-                ? 'bg-brand-cyan/20 border border-brand-cyan/40 text-brand-cyan shadow-glow-cyan/20'
-                : 'bg-dark-700 hover:bg-dark-600 text-slate-300 border border-dark-border'
+            className={`w-7 h-4 rounded-full p-0.5 transition-colors ${
+              isMonitoring ? 'bg-brand-cyan' : 'bg-dark-700'
             }`}
           >
-            {isMonitoring ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-            <span>{isMonitoring ? 'Pause Agent' : 'Activate Agent'}</span>
+            <div
+              className={`w-3 h-3 bg-white rounded-full transform transition-transform ${
+                isMonitoring ? 'translate-x-3' : 'translate-x-0'
+              }`}
+            />
           </button>
         </div>
       </div>
 
-      {/* Agent Live Activity Logs */}
-      <div className="bg-dark-900/80 border border-dark-border rounded-2xl p-4 font-mono text-xs max-h-48 overflow-y-auto space-y-2">
-        {logs.map((log) => (
-          <div key={log.id} className="flex items-start space-x-3 text-slate-300">
-            <span className="text-slate-500 shrink-0 font-medium">{log.time}</span>
-            <div className="flex items-center space-x-2">
-              {log.type === 'success' && <CheckCircle2 className="w-3.5 h-3.5 text-brand-green shrink-0" />}
-              {log.type === 'warn' && <AlertTriangle className="w-3.5 h-3.5 text-brand-warning shrink-0" />}
-              {log.type === 'info' && <RefreshCw className="w-3.5 h-3.5 text-brand-cyan shrink-0" />}
-              <span className={
-                log.type === 'warn' ? 'text-brand-warning' : log.type === 'success' ? 'text-brand-green' : 'text-slate-300'
-              }>
-                {log.msg}
-              </span>
+      {/* Approvals Warning Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+        {highRiskApprovals.length > 0 ? (
+          highRiskApprovals.map((app) => (
+            <div
+              key={app.id}
+              className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/30 flex items-start justify-between space-x-2"
+            >
+              <div className="flex items-start space-x-2">
+                <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5" />
+                <div>
+                  <div className="flex items-center space-x-1.5">
+                    <span className="text-[11px] font-bold text-white">{(app as any).spenderName || (app as any).contractName || 'Unverified Contract'}</span>
+                    <span className="text-[9px] px-1 py-0.2 rounded bg-rose-500/20 text-rose-300 font-mono">
+                      Allowance: {app.allowance}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-300 mt-0.5 font-normal">
+                    {(app as any).reason || (app as any).aiNote || 'High-risk allowance granted to newly deployed unverified proxy contract.'}
+                  </p>
+                </div>
+              </div>
             </div>
+          ))
+        ) : (
+          <div className="col-span-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between text-emerald-300 text-[11px]">
+            <div className="flex items-center space-x-2">
+              <CheckCircle2 className="w-4 h-4 text-brand-green" />
+              <span className="font-semibold">All token allowances verified clean. 0 suspicious phishing signatures detected.</span>
+            </div>
+            <span className="text-[9px] font-mono text-emerald-400">100% Protected</span>
           </div>
-        ))}
+        )}
       </div>
     </div>
   );

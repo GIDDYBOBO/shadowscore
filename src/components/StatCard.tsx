@@ -23,26 +23,26 @@ export const StatCard: React.FC<StatCardProps> = ({
   sparklinePath,
 }) => {
   return (
-    <div className="glass-card glass-card-hover rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden border border-dark-border shadow-card">
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[11px] font-semibold text-slate-400">{title}</span>
-        <div className={`w-7 h-7 rounded-lg ${iconBgColor} flex items-center justify-center ${iconColor}`}>
-          <Icon className="w-3.5 h-3.5" />
+    <div className="glass-card glass-card-hover rounded-xl p-3 sm:p-3.5 flex flex-col justify-between relative overflow-hidden border border-dark-border shadow-card">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-[10px] font-semibold text-slate-400">{title}</span>
+        <div className={`w-6 h-6 rounded-md ${iconBgColor} flex items-center justify-center ${iconColor}`}>
+          <Icon className="w-3 h-3" />
         </div>
       </div>
 
-      <div className="flex items-end justify-between mt-1">
+      <div className="flex items-end justify-between mt-0.5">
         <div>
-          <div className="text-xl font-extrabold text-white tracking-tight font-mono">
+          <div className="text-base sm:text-lg font-black text-white tracking-tight font-mono">
             {value}
           </div>
           {subtitle && (
-            <span className="text-[10px] text-slate-400 font-medium">{subtitle}</span>
+            <span className="text-[9px] text-slate-400 font-medium block">{subtitle}</span>
           )}
         </div>
 
         {/* Inline SVG Sparkline */}
-        <svg className="w-14 h-7 text-current shrink-0" viewBox="0 0 60 25" fill="none">
+        <svg className="w-12 h-6 text-current shrink-0" viewBox="0 0 60 25" fill="none">
           <path
             d={sparklinePath}
             stroke={sparklineColor}
