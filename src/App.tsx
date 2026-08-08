@@ -3,17 +3,19 @@ import {
   Download, 
   Sparkles, 
   X,
-  Layers,
-  Activity,
-  Shield,
-  Zap,
-  Image,
-  DollarSign,
-  TrendingUp
+  ArrowLeftRight, 
+  Coins, 
+  Image, 
+  DollarSign 
 } from 'lucide-react';
 import { Sidebar, type NavTab } from './components/Sidebar';
 import { Header } from './components/Header';
 import { SubCategoryBar, type SubCategoryFilter } from './components/SubCategoryBar';
+import { ExecutiveSummary } from './components/ExecutiveSummary';
+import { NetPortfolioSection } from './components/NetPortfolioSection';
+import { RadialScoreGauge } from './components/RadialScoreGauge';
+import { WalletIdentityCard } from './components/WalletIdentityCard';
+import { RiskOverviewCard } from './components/RiskOverviewCard';
 import { StatCard } from './components/StatCard';
 import { ReputationChart } from './components/ReputationChart';
 import { ReputationBreakdown } from './components/ReputationBreakdown';
@@ -52,37 +54,8 @@ export function App() {
   const [darkMode, setDarkMode] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Active wallet state with full fallback safety
-  const defaultWalletProfile = MOCK_WALLETS[DEFAULT_WALLET_ADDRESS] || {
-    address: '0x99281313437194819741094812389148149831AA',
-    score: 84,
-    grade: 'A',
-    status: 'Healthy',
-    totalGasUsd: 42.50,
-    totalNfts: 3,
-    portfolioValueUsd: 12450.00,
-    topProtocols: ['Uniswap v3', 'Aave v3', 'Lido Finance'],
-    breakdown: [
-      { category: 'Security & Approvals', score: 92, maxScore: 100, color: '#00F0FF' },
-      { category: 'DeFi Activity', score: 84, maxScore: 100, color: '#00FF66' },
-      { category: 'NFT & Digital Assets', score: 78, maxScore: 100, color: '#8B5CF6' },
-      { category: 'Governance & DAO', score: 75, maxScore: 100, color: '#F59E0B' },
-    ],
-    reputationHistory: [
-      { date: 'Jan', score: 62 },
-      { date: 'Feb', score: 68 },
-      { date: 'Mar', score: 74 },
-      { date: 'Apr', score: 79 },
-      { date: 'May', score: 83 },
-      { date: 'Jun', score: 84 },
-    ],
-    approvals: [],
-    activeDApps: [],
-    timeline: [],
-    recommendations: []
-  };
-
-  const [currentWallet, setCurrentWallet] = useState<WalletProfile>(defaultWalletProfile);
+  // Active wallet state
+  const [currentWallet, setCurrentWallet] = useState<WalletProfile>(MOCK_WALLETS[DEFAULT_WALLET_ADDRESS]);
   const [isMonitoringActive, setIsMonitoringActive] = useState(true);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [toastAlert, setToastAlert] = useState<string | null>(null);
@@ -123,7 +96,7 @@ export function App() {
 
   const handleDisconnectRealWallet = () => {
     setRealWalletData(null);
-    setCurrentWallet(defaultWalletProfile);
+    setCurrentWallet(MOCK_WALLETS[DEFAULT_WALLET_ADDRESS]);
     setToastAlert('🔌 Wallet disconnected. Switched to demo persona.');
     setTimeout(() => setToastAlert(null), 3000);
   };
@@ -152,10 +125,10 @@ export function App() {
         ? data.tokens.slice(0, 3).map(t => `${t.name} (${t.symbol})`)
         : ['Uniswap v3', 'Aave v3', 'Lido Finance'],
       breakdown: [
-        { label: 'Security & Approvals', score: 92, maxScore: 100, category: 'Security', color: '#00F0FF' },
-        { label: 'DeFi Liquidity & Swaps', score: Math.min(100, 60 + data.tokens.length * 8), maxScore: 100, category: 'DeFi Activity', color: '#00FF66' },
-        { label: 'NFT Portfolio Quality', score: Math.min(100, 50 + data.nfts.length * 15), maxScore: 100, category: 'NFT Activity', color: '#8B5CF6' },
-        { label: 'Governance & DAO Activity', score: 75, maxScore: 100, category: 'Governance', color: '#F59E0B' },
+        { category: 'Security & Approvals', score: 92, color: '#00F0FF' },
+        { category: 'DeFi Activity', score: Math.min(100, 60 + data.tokens.length * 8), color: '#00FF66' },
+        { category: 'NFT Activity', score: Math.min(100, 50 + data.nfts.length * 15), color: '#8B5CF6' },
+        { category: 'Governance & DAO Activity', score: 75, color: '#F59E0B' },
       ],
       reputationHistory: [
         { date: 'Jan', score: 62 },
@@ -195,14 +168,16 @@ export function App() {
           event: `Live Wallet Synchronization (${data.chainName})`,
           date: 'Just now',
           impact: 'positive'
-        }
+        },
+        ...MOCK_WALLETS[DEFAULT_WALLET_ADDRESS].timeline
       ],
-      recommendations: defaultWalletProfile.recommendations || []
+      recommendations: MOCK_WALLETS[DEFAULT_WALLET_ADDRESS].recommendations
     };
 
     setCurrentWallet(profile);
   };
 
+  // Detailed Wallet Address Search
   const handleSelectWallet = async (address: string) => {
     setRealWalletData(null);
     if (MOCK_WALLETS[address]) {
@@ -215,6 +190,7 @@ export function App() {
     setTimeout(() => setToastAlert(null), 4000);
   };
 
+  // Sub-category pill selection callback
   const handleSelectSubCategory = (cat: SubCategoryFilter) => {
     setSelectedSubCategory(cat);
     if (cat === 'Social') {
@@ -286,7 +262,6 @@ export function App() {
 
   return (
     <div className={`min-h-screen flex ${darkMode ? 'dark dark-theme bg-[#0B0E14] text-slate-100' : 'light light-theme bg-[#F5F4EE] text-slate-900'}`}>
-      {/* Responsive Sidebar with Mobile Drawer */}
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -298,7 +273,6 @@ export function App() {
       />
 
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Responsive Header with Mobile Menu Toggle */}
         <Header
           currentWallet={currentWallet}
           onSelectWallet={handleSelectWallet}
@@ -316,9 +290,9 @@ export function App() {
         />
 
         {toastAlert && (
-          <div className="mx-4 sm:mx-8 mt-4 p-3.5 sm:p-4 rounded-2xl bg-brand-cyan/20 border border-brand-cyan/40 text-white flex items-center justify-between shadow-2xl animate-in slide-in-from-top text-xs">
-            <div className="flex items-center space-x-2.5 font-semibold">
-              <Sparkles className="w-4 h-4 text-brand-cyan shrink-0 animate-bounce" />
+          <div className="mx-4 sm:mx-8 mt-4 p-4 rounded-2xl bg-brand-cyan/20 border border-brand-cyan/40 text-white flex items-center justify-between shadow-2xl animate-in slide-in-from-top text-xs">
+            <div className="flex items-center space-x-3 font-semibold">
+              <Sparkles className="w-5 h-5 text-brand-cyan shrink-0 animate-bounce" />
               <span>{toastAlert}</span>
             </div>
             <button
@@ -330,8 +304,7 @@ export function App() {
           </div>
         )}
 
-        {/* Fluid Proportional Main Container */}
-        <main className="p-4 sm:p-6 lg:p-8 flex-1 overflow-y-auto max-w-[1440px] mx-auto w-full space-y-6">
+        <main className="p-4 sm:p-6 lg:p-8 flex-1 overflow-y-auto max-w-[1440px] mx-auto w-full">
           {/* Sub-category Filter Bar */}
           <SubCategoryBar
             selectedCategory={selectedSubCategory}
@@ -339,48 +312,73 @@ export function App() {
           />
 
           {activeTab === 'overview' && (
-            <div className="space-y-6">
+            <div>
               {/* Top Action Bar with 1-Click Export PDF Button */}
-              <div className="flex justify-end">
+              <div className="flex justify-end mb-4">
                 <button
                   onClick={handleExportPDFOverview}
-                  className="px-3.5 py-2 bg-gradient-to-r from-brand-blue to-brand-cyan hover:from-blue-600 hover:to-cyan-400 text-white font-bold rounded-xl text-xs flex items-center space-x-2 transition-all shadow-glow-blue/20"
+                  className="px-4 py-2 bg-gradient-to-r from-brand-blue to-brand-cyan hover:from-blue-600 hover:to-cyan-400 text-white font-bold rounded-xl text-xs flex items-center space-x-2 transition-all shadow-glow-blue/20"
                 >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Export PDF Audit</span>
+                  <Download className="w-4 h-4" />
+                  <span>Export Full PDF Audit Report</span>
                 </button>
               </div>
 
-              {/* 4 Stat Cards: Responsive Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-                <div className="cursor-pointer" onClick={() => setActiveTab('security')}>
-                  <StatCard
-                    title="Reputation Score"
-                    value={`${currentWallet?.score || 84}/100`}
-                    subtitle={`Grade ${currentWallet?.grade || 'A'} • Verified`}
-                    icon={Shield}
-                    iconBgColor="bg-brand-cyan/20"
-                    iconColor="text-brand-cyan"
-                    sparklineColor="#00F0FF"
-                    sparklinePath="M 2 20 L 15 14 L 30 18 L 45 8 L 58 2"
-                  />
-                </div>
+              {/* Executive Summary Banner */}
+              <ExecutiveSummary wallet={currentWallet} isConnected={isConnected} />
+
+              {/* Net Portfolio & Health Factor Section */}
+              <NetPortfolioSection
+                wallet={currentWallet}
+                isConnected={isConnected}
+                realWalletData={realWalletData}
+                onInspectContract={() => setActiveTab('security')}
+                onOpenAiAssistant={() => setIsAiModalOpen(true)}
+              />
+
+              {/* Core Dashboard Cards Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <RadialScoreGauge wallet={currentWallet} />
+                <WalletIdentityCard
+                  wallet={currentWallet}
+                  onOpenReport={() => setActiveTab('employer')}
+                />
+                <RiskOverviewCard
+                  wallet={currentWallet}
+                  onViewDetails={() => setActiveTab('security')}
+                />
+              </div>
+
+              {/* 4 Stat Cards Row */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
                 <div className="cursor-pointer" onClick={() => setActiveTab('transactions')}>
                   <StatCard
-                    title="Total Gas Spent"
-                    value={`$${(currentWallet?.totalGasUsd || 42.50).toFixed(2)} USD`}
-                    subtitle="Multi-Chain Gas Spent"
-                    icon={Zap}
+                    title="Transactions"
+                    value={currentWallet?.totalTransactions || 19}
+                    subtitle="Total Transactions"
+                    icon={ArrowLeftRight}
+                    iconBgColor="bg-blue-600/20"
+                    iconColor="text-brand-blue"
+                    sparklineColor="#3B82F6"
+                    sparklinePath="M 2 20 L 15 14 L 30 18 L 45 6 L 58 2"
+                  />
+                </div>
+                <div className="cursor-pointer" onClick={() => setActiveTab('portfolio')}>
+                  <StatCard
+                    title="Token Holdings"
+                    value={`${currentWallet?.totalTokens || 6} Tokens`}
+                    subtitle="Click to view content"
+                    icon={Coins}
                     iconBgColor="bg-brand-green/20"
                     iconColor="text-brand-green"
-                    sparklineColor="#00FF66"
+                    sparklineColor="#10B981"
                     sparklinePath="M 2 18 L 15 12 L 30 15 L 45 8 L 58 4"
                   />
                 </div>
                 <div className="cursor-pointer" onClick={() => setActiveTab('badge')}>
                   <StatCard
                     title="NFT Badge"
-                    value={currentWallet?.totalNfts || 1}
+                    value={currentWallet?.totalNfts || 0}
                     subtitle="Soulbound NFT Certificate"
                     icon={Image}
                     iconBgColor="bg-brand-purple/20"
@@ -392,8 +390,8 @@ export function App() {
                 <div className="cursor-pointer" onClick={() => setActiveTab('portfolio')}>
                   <StatCard
                     title="Portfolio Value"
-                    value={isConnected ? `$${(currentWallet?.portfolioValueUsd || 0.26).toFixed(2)} USD` : '$12,450.00 USD'}
-                    subtitle={isConnected ? 'Live USD Value' : 'Portfolio Tracking'}
+                    value={isConnected ? `$${(currentWallet?.portfolioValueUsd > 0 ? currentWallet.portfolioValueUsd : 0.26).toFixed(2)} USD` : '_ _ _ USD'}
+                    subtitle={isConnected ? 'Live USD Value' : 'Wallet Unconnected'}
                     icon={DollarSign}
                     iconBgColor="bg-amber-500/20"
                     iconColor="text-amber-400"
@@ -404,7 +402,7 @@ export function App() {
               </div>
 
               {/* Reputation Over Time & Breakdown Charts */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
                 <div className="lg:col-span-2">
                   <ReputationChart data={currentWallet?.reputationHistory || []} />
                 </div>
@@ -483,7 +481,7 @@ export function App() {
               <Sparkles className="w-12 h-12 text-brand-cyan mx-auto mb-4 animate-pulse" />
               <h2 className="text-xl font-bold text-white capitalize">{activeTab} Module</h2>
               <p className="text-xs text-slate-400 max-w-md mx-auto mt-2 leading-relaxed">
-                ReputationOS autonomous agent is monitoring this module. All on-chain assets and telemetry for address {currentWallet?.address || '0x...'} are continuously synchronized.
+                ReputationOS autonomous agent is monitoring this module. All on-chain assets and telemetry for address {currentWallet.address} are continuously synchronized.
               </p>
               <button
                 onClick={() => setActiveTab('overview')}
