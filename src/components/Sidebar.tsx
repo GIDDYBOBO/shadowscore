@@ -45,8 +45,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const navItems: { id: NavTab; label: string; icon: React.ElementType; badge?: string }[] = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { id: 'markets', label: 'Market', icon: LineChart, badge: 'Live' },
     { id: 'portfolio', label: 'Portfolio', icon: Wallet },
-    { id: 'markets', label: 'ShadowScore Terminal', icon: LineChart, badge: 'Live' },
     { id: 'transactions', label: 'Transactions', icon: ArrowLeftRight },
     { id: 'security', label: 'Security & Revoke', icon: ShieldAlert, badge: 'Active' },
     { id: 'legal', label: 'Legal & Documentation', icon: Scale },
