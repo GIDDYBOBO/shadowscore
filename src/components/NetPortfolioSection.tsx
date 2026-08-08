@@ -213,39 +213,39 @@ export const NetPortfolioSection: React.FC<NetPortfolioSectionProps> = ({
   };
 
   return (
-    <div className="space-y-6 mb-6 font-sans">
+    <div className="space-y-4 mb-5 font-sans">
       {inspectionToast && (
-        <div className="p-4 rounded-2xl bg-brand-cyan/20 border border-brand-cyan/40 text-white flex items-center justify-between shadow-2xl animate-in slide-in-from-top text-xs font-semibold">
+        <div className="p-3 rounded-xl bg-brand-cyan/20 border border-brand-cyan/40 text-white flex items-center justify-between shadow-2xl animate-in slide-in-from-top text-xs font-semibold">
           <div className="flex items-center space-x-2">
-            <CheckCircle2 className="w-5 h-5 text-brand-green" />
+            <CheckCircle2 className="w-4 h-4 text-brand-green" />
             <span>{inspectionToast}</span>
           </div>
           <button onClick={() => setInspectionToast(null)} className="text-slate-400 hover:text-white">
-            <X className="w-4 h-4" />
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
       )}
 
       {/* Top Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5">
         {/* 1. Net Portfolio Value Card - Rabby Wallet Screenshot Representation */}
-        <div className="lg:col-span-2 glass-card rounded-3xl p-6 border border-dark-border flex flex-col justify-between relative overflow-hidden space-y-4">
+        <div className="lg:col-span-2 glass-card rounded-2xl p-4 sm:p-5 border border-dark-border flex flex-col justify-between relative overflow-hidden space-y-3">
           {/* Top Header Row */}
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <span className="text-3xl font-black text-white font-mono tracking-tight">
+              <span className="text-xl sm:text-2xl font-black text-white font-mono tracking-tight">
                 {isConnected ? `$${displayTotalUsd.toFixed(2)}` : '_ _ _ USD'}
               </span>
-              <span className="text-xs font-extrabold text-brand-green bg-brand-green/15 px-2 py-0.5 rounded-md border border-brand-green/30">
+              <span className="text-[10px] font-extrabold text-brand-green bg-brand-green/15 px-1.5 py-0.2 rounded border border-brand-green/30">
                 +110.25%
               </span>
             </div>
 
             {/* Rabby Tab Switcher Pills: Integrated Network vs Custom Network */}
-            <div className="flex items-center bg-dark-900 p-1 rounded-xl border border-dark-border text-xs font-bold font-sans">
+            <div className="flex items-center bg-dark-900 p-0.5 rounded-lg border border-dark-border text-[11px] font-bold font-sans">
               <button
                 onClick={() => { setNetworkTab('Integrated'); setTokensPageIndex(0); }}
-                className={`px-3 py-1 rounded-lg transition-all ${
+                className={`px-2.5 py-0.5 rounded-md transition-all ${
                   networkTab === 'Integrated' ? 'bg-white text-dark-900 shadow-md font-bold' : 'text-slate-400 hover:text-white'
                 }`}
               >
@@ -253,7 +253,7 @@ export const NetPortfolioSection: React.FC<NetPortfolioSectionProps> = ({
               </button>
               <button
                 onClick={() => { setNetworkTab('Custom'); setTokensPageIndex(0); }}
-                className={`px-3 py-1 rounded-lg transition-all ${
+                className={`px-2.5 py-0.5 rounded-md transition-all ${
                   networkTab === 'Custom' ? 'bg-white text-dark-900 shadow-md font-bold' : 'text-slate-400 hover:text-white'
                 }`}
               >
