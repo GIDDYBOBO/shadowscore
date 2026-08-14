@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Download, 
   Sparkles, 
@@ -44,6 +44,7 @@ import {
   connectEthereumWallet, 
   connectSolanaWallet, 
   fetchFullWalletTelemetry,
+  fetchDemoWalletLiveData,
   type RealWalletFullData 
 } from './utils/web3Provider';
 
@@ -60,9 +61,43 @@ export function App() {
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [toastAlert, setToastAlert] = useState<string | null>(null);
 
-  // Real Web3 wallet state
+  // Real Web3 wallet state — starts as null, populated by demo fetch on mount
   const [realWalletData, setRealWalletData] = useState<RealWalletFullData | null>(null);
-  const isConnected = Boolean(realWalletData);
+  const [demoWalletData, setDemoWalletData] = useState<RealWalletFullData | null>(null);
+  const [isLoadingDemo, setIsLoadingDemo] = useState(true);
+
+  // true when user has connected their OWN wallet (not demo)
+  const isConnected = Boolean(realWalletData && !realWalletData.isDemoWallet);
+  // true when ANY data (demo or real) is loaded
+  const hasLiveData = Boolean(realWalletData);
+
+  // ── Load demo wallet live data on mount ──
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const data = await fetchDemoWalletLiveData();
+        if (!cancelled) {
+          setDemoWalletData(data);
+          setRealWalletData(data);
+          // Patch WalletProfile portfolio value from live data
+          setCurrentWallet(prev => ({
+            ...prev,
+            portfolioValueUsd: data.portfolioValueUsd,
+            totalNfts: data.nfts.length,
+            totalTransactions: data.transactionCount,
+          }));
+        }
+      } catch (e) {
+        // silently fail — falls back to mock data
+      } finally {
+        if (!cancelled) setIsLoadingDemo(false);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, []);
+
 
   const approvalsList = currentWallet?.approvals || [];
   const unreadAlertsCount = approvalsList.filter(a => a.state === 'Active' && (((a as any).riskScore || 0) > 50 || a.riskLevel === 'High')).length;
@@ -95,9 +130,15 @@ export function App() {
   };
 
   const handleDisconnectRealWallet = () => {
-    setRealWalletData(null);
-    setCurrentWallet(MOCK_WALLETS[DEFAULT_WALLET_ADDRESS]);
-    setToastAlert('🔌 Wallet disconnected. Switched to demo persona.');
+    // On disconnect, restore demo wallet live data (not blank mock)
+    setRealWalletData(demoWalletData);
+    setCurrentWallet(prev => ({
+      ...MOCK_WALLETS[DEFAULT_WALLET_ADDRESS],
+      portfolioValueUsd: demoWalletData?.portfolioValueUsd ?? prev.portfolioValueUsd,
+      totalNfts: demoWalletData?.nfts.length ?? prev.totalNfts,
+      totalTransactions: demoWalletData?.transactionCount ?? prev.totalTransactions,
+    }));
+    setToastAlert('🔌 Wallet disconnected. Restored demo wallet live view.');
     setTimeout(() => setToastAlert(null), 3000);
   };
 
@@ -326,6 +367,34 @@ export function App() {
           {activeTab === 'overview' && (
             <div>
               {/* Top Action Bar with 1-Click Export PDF Button */}
+              {/* Live Demo Wallet Indicator Strip */}
+              {realWalletData?.isDemoWallet && (
+                <div className="flex flex-wrap items-center gap-3 mb-4 px-3 py-2.5 rounded-xl border border-brand-cyan/20 bg-brand-cyan/5 text-[10px] font-mono">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-brand-cyan animate-pulse inline-block" />
+                    <span className="text-brand-cyan font-bold uppercase tracking-wider">Live Demo Wallet</span>
+                  </div>
+                  <span className="text-slate-500">·</span>
+                  <span className="text-slate-400">
+                    <span className="text-slate-300">{realWalletData.address.slice(0, 8)}…{realWalletData.address.slice(-6)}</span>
+                  </span>
+                  <span className="text-slate-500">·</span>
+                  <span className="text-slate-400">Balance: <span className="text-white font-bold">{parseFloat(realWalletData.balanceEth).toFixed(5)} ETH</span></span>
+                  <span className="text-slate-500">·</span>
+                  <span className="text-slate-400">Portfolio: <span className="text-amber-400 font-bold">${realWalletData.portfolioValueUsd.toFixed(2)} USD</span></span>
+                  <span className="text-slate-500">·</span>
+                  <span className="text-slate-400">Tokens: <span className="text-emerald-400 font-bold">{realWalletData.tokens.length}</span></span>
+                  <span className="text-slate-500">·</span>
+                  <span className="text-slate-400">NFTs: <span className="text-brand-purple font-bold">{realWalletData.nfts.length}</span></span>
+                  <span className="text-slate-500">·</span>
+                  <span className="text-slate-400">Txns: <span className="text-white font-bold">{realWalletData.transactionCount.toLocaleString()}</span></span>
+                  <span className="text-slate-500">·</span>
+                  <span className="text-slate-400">Health: <span className={(realWalletData as any).healthFactor >= 70 ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>{(realWalletData as any).healthFactor ?? '—'}/100</span></span>
+                  <span className="ml-auto text-slate-600">Powered by Alchemy</span>
+                </div>
+              )}
+
+              {/* Top Action Bar with 1-Click Export PDF Button */}
               <div className="flex justify-end mb-4">
                 <button
                   onClick={handleExportPDFOverview}
@@ -335,6 +404,7 @@ export function App() {
                   <span>Export Full PDF Audit Report</span>
                 </button>
               </div>
+
 
               {/* Executive Summary Banner */}
               <ExecutiveSummary wallet={currentWallet} isConnected={isConnected} />
@@ -366,8 +436,8 @@ export function App() {
                 <div className="cursor-pointer" onClick={() => setActiveTab('transactions')}>
                   <StatCard
                     title="Transactions"
-                    value={currentWallet?.totalTransactions || 19}
-                    subtitle="Total Transactions"
+                    value={hasLiveData && realWalletData ? realWalletData.transactionCount : (currentWallet?.totalTransactions || 19)}
+                    subtitle={hasLiveData ? (isConnected ? 'Live · Your Wallet' : 'Live · Demo Wallet') : 'Total Transactions'}
                     icon={ArrowLeftRight}
                     iconBgColor="bg-blue-600/20"
                     iconColor="text-brand-blue"
@@ -378,8 +448,8 @@ export function App() {
                 <div className="cursor-pointer" onClick={() => setActiveTab('portfolio')}>
                   <StatCard
                     title="Token Holdings"
-                    value={`${currentWallet?.totalTokens || 6} Tokens`}
-                    subtitle="Click to view content"
+                    value={hasLiveData && realWalletData ? `${realWalletData.tokens.length} Tokens` : `${currentWallet?.totalTokens || 6} Tokens`}
+                    subtitle={hasLiveData ? (isConnected ? 'Live ERC-20 · Your Wallet' : 'Live ERC-20 · Demo Wallet') : 'Click to view content'}
                     icon={Coins}
                     iconBgColor="bg-brand-green/20"
                     iconColor="text-brand-green"
@@ -389,9 +459,9 @@ export function App() {
                 </div>
                 <div className="cursor-pointer" onClick={() => setActiveTab('badge')}>
                   <StatCard
-                    title="NFT Badge"
-                    value={currentWallet?.totalNfts || 0}
-                    subtitle="Soulbound NFT Certificate"
+                    title="NFT Holdings"
+                    value={hasLiveData && realWalletData ? realWalletData.nfts.length : (currentWallet?.totalNfts || 0)}
+                    subtitle={hasLiveData ? (isConnected ? 'Live NFTs · Your Wallet' : 'Live NFTs · Demo Wallet') : 'Soulbound NFT Certificate'}
                     icon={Image}
                     iconBgColor="bg-brand-purple/20"
                     iconColor="text-brand-purple"
@@ -402,8 +472,14 @@ export function App() {
                 <div className="cursor-pointer" onClick={() => setActiveTab('portfolio')}>
                   <StatCard
                     title="Portfolio Value"
-                    value={isConnected ? `$${(currentWallet?.portfolioValueUsd > 0 ? currentWallet.portfolioValueUsd : 0.26).toFixed(2)} USD` : '_ _ _ USD'}
-                    subtitle={isConnected ? 'Live USD Value' : 'Wallet Unconnected'}
+                    value={
+                      hasLiveData && realWalletData
+                        ? `$${realWalletData.portfolioValueUsd.toFixed(2)} USD`
+                        : isLoadingDemo
+                        ? 'Loading...'
+                        : '_ _ _ USD'
+                    }
+                    subtitle={isConnected ? 'Live USD · Your Wallet' : hasLiveData ? 'Live USD · Demo Wallet' : 'Connect wallet to see value'}
                     icon={DollarSign}
                     iconBgColor="bg-amber-500/20"
                     iconColor="text-amber-400"

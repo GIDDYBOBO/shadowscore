@@ -59,15 +59,21 @@ export interface RealWalletFullData {
   chainId: string;
   networkName: NetworkName;
   balanceEth: string;
+  /** @deprecated use balanceEth */
+  nativeBalance?: string;
   ethPriceUsd: number;
   portfolioValueUsd: number;
   transactionCount: number;
+  /** @deprecated use transactionCount */
+  txCount?: number;
+  ensName?: string;
   tokens: RealTokenItem[];
   chainAllocations: ChainAllocationItem[];
   nfts: RealNftItem[];
   transactions: RealTransactionItem[];
   stakedAssets: RealStakedAssetsInfo;
   providerName: string;
+  isDemoWallet?: boolean;
 }
 
 declare global {
@@ -93,6 +99,248 @@ export const CHAIN_ID_MAP: Record<string, { name: NetworkName; label: string; sy
 
 export const ALCHEMY_API_KEY = import.meta.env.VITE_ALCHEMY_API_KEY || 'soMu5_f1ovW22OpOISMny';
 export const ALCHEMY_RPC_URL = `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`;
+export const ALCHEMY_NFT_URL = `https://eth-mainnet.g.alchemy.com/nft/v3/${ALCHEMY_API_KEY}`;
+
+/** The permanent demo wallet shown at dashboard startup before any user wallet connects */
+export const DEMO_WALLET_ADDRESS = '0x99281313437194819741094812389148149831AA';
+
+// ─── Alchemy: fetch native ETH balance ───────────────────────────────────────
+export const fetchAlchemyEthBalance = async (address: string): Promise<{ balanceEth: string; txCount: number }> => {
+  const [balRes, txRes] = await Promise.allSettled([
+    fetch(ALCHEMY_RPC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_getBalance', params: [address, 'latest'] })
+    }),
+    fetch(ALCHEMY_RPC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'eth_getTransactionCount', params: [address, 'latest'] })
+    })
+  ]);
+
+  let balanceEth = '0.000000';
+  let txCount = 0;
+
+  if (balRes.status === 'fulfilled' && balRes.value.ok) {
+    const j = await balRes.value.json();
+    if (j.result) balanceEth = (parseInt(j.result, 16) / 1e18).toFixed(6);
+  }
+  if (txRes.status === 'fulfilled' && txRes.value.ok) {
+    const j = await txRes.value.json();
+    if (j.result) txCount = parseInt(j.result, 16);
+  }
+
+  return { balanceEth, txCount };
+};
+
+// ─── Alchemy: fetch ERC-20 token balances with metadata ──────────────────────
+export const fetchAlchemyTokenBalances = async (
+  address: string,
+  ethPriceUsd: number
+): Promise<RealTokenItem[]> => {
+  try {
+    const res = await fetch(ALCHEMY_RPC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0', id: 1,
+        method: 'alchemy_getTokenBalances',
+        params: [address, 'erc20']
+      })
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const balances: { contractAddress: string; tokenBalance: string }[] = data?.result?.tokenBalances || [];
+
+    // Filter out zero balances and limit to top 15
+    const nonZero = balances
+      .filter(b => b.tokenBalance && b.tokenBalance !== '0x0000000000000000000000000000000000000000000000000000000000000000')
+      .slice(0, 15);
+
+    if (nonZero.length === 0) return [];
+
+    // Fetch metadata for all tokens in parallel
+    const metaResults = await Promise.allSettled(
+      nonZero.map(b =>
+        fetch(ALCHEMY_RPC_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0', id: 1,
+            method: 'alchemy_getTokenMetadata',
+            params: [b.contractAddress]
+          })
+        }).then(r => r.json())
+      )
+    );
+
+    const tokens: RealTokenItem[] = [];
+    for (let i = 0; i < nonZero.length; i++) {
+      const metaResult = metaResults[i];
+      if (metaResult.status !== 'fulfilled') continue;
+      const meta = metaResult.value?.result;
+      if (!meta || !meta.symbol || !meta.decimals) continue;
+
+      const rawHex = nonZero[i].tokenBalance;
+      const rawInt = BigInt(rawHex);
+      const decimals = meta.decimals || 18;
+      const balance = Number(rawInt) / Math.pow(10, decimals);
+      if (balance <= 0) continue;
+
+      // Estimate USD value using a very rough heuristic (coingecko lookup would be ideal)
+      // We use 0 as fallback — live price enrichment happens in fetchLiveMultiTokenPrices
+      tokens.push({
+        symbol: meta.symbol || 'UNKNOWN',
+        name: meta.name || meta.symbol || 'Unknown Token',
+        balance: balance.toFixed(balance < 1 ? 6 : 2),
+        usdValue: 0,
+        priceUsd: 0,
+        change24h: 0,
+        volume24hUsd: 0,
+        high24h: 0,
+        low24h: 0,
+        icon: meta.logo || undefined,
+        trend: 'up',
+        isDust: balance * 0 < 1, // will be updated after price fetch
+        chainName: 'Ethereum'
+      });
+    }
+    return tokens;
+  } catch (_) {
+    return [];
+  }
+};
+
+// ─── Alchemy: fetch NFTs owned by address ────────────────────────────────────
+export const fetchAlchemyNFTsForOwner = async (
+  address: string,
+  ethPriceUsd: number
+): Promise<RealNftItem[]> => {
+  try {
+    const url = `${ALCHEMY_NFT_URL}/getNFTsForOwner?owner=${address}&withMetadata=true&pageSize=20`;
+    const res = await fetch(url, { headers: { accept: 'application/json' } });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const ownedNfts: any[] = data?.ownedNfts || [];
+    if (ownedNfts.length === 0) return [];
+
+    return ownedNfts.slice(0, 10).map((nft: any, idx: number) => {
+      const floorEth = nft.contract?.openSeaMetadata?.floorPrice || 0;
+      return {
+        id: `alchemy-nft-${idx}`,
+        name: nft.name || nft.contract?.name || `NFT #${nft.tokenId}`,
+        collection: nft.contract?.name || nft.contract?.openSeaMetadata?.collectionName || 'Unknown Collection',
+        badgeType: nft.tokenType || 'ERC-721',
+        estimatedFloorEth: floorEth,
+        estimatedFloorUsd: Math.round(floorEth * ethPriceUsd * 100) / 100,
+        rarityRank: nft.contract?.openSeaMetadata?.safelistRequestStatus || undefined,
+        trend24h: 0
+      };
+    });
+  } catch (_) {
+    return [];
+  }
+};
+
+// ─── Master: fetch all live on-chain data for the demo wallet ────────────────
+export const fetchDemoWalletLiveData = async (): Promise<RealWalletFullData> => {
+  const address = DEMO_WALLET_ADDRESS;
+
+  // Run ETH balance + price fetch in parallel
+  const [balData, ethPrice] = await Promise.all([
+    fetchAlchemyEthBalance(address),
+    fetchEthPriceUsd()
+  ]);
+
+  const { balanceEth, txCount } = balData;
+  const ethBal = parseFloat(balanceEth);
+
+  // Run token + NFT fetch in parallel
+  const [rawTokens, nfts] = await Promise.all([
+    fetchAlchemyTokenBalances(address, ethPrice),
+    fetchAlchemyNFTsForOwner(address, ethPrice)
+  ]);
+
+  // Always include native ETH as first token
+  const ethToken: RealTokenItem = {
+    symbol: 'ETH',
+    name: 'Ethereum',
+    balance: balanceEth,
+    usdValue: Math.round(ethBal * ethPrice * 100) / 100,
+    priceUsd: ethPrice,
+    change24h: 0,
+    volume24hUsd: 0,
+    high24h: 0,
+    low24h: 0,
+    icon: '🔷',
+    trend: 'up',
+    isDust: ethBal < 0.001,
+    chainName: 'Ethereum'
+  };
+
+  // Merge native ETH + ERC-20s, then enrich prices
+  const mergedTokens = [ethToken, ...rawTokens];
+  const tokens = await fetchLiveMultiTokenPrices(mergedTokens);
+
+  // Compute portfolio total
+  const portfolioValueUsd = Math.round(
+    tokens.reduce((sum, t) => sum + (t.usdValue || 0), 0) * 100
+  ) / 100;
+
+  // Build chain allocations from token data
+  const chainMap: Record<string, number> = {};
+  for (const t of tokens) {
+    const chain = t.chainName || 'Ethereum';
+    chainMap[chain] = (chainMap[chain] || 0) + (t.usdValue || 0);
+  }
+  const totalForAlloc = Object.values(chainMap).reduce((a, b) => a + b, 0) || 1;
+  const chainIconMap: Record<string, string> = {
+    Ethereum: '🔷', Base: '🔵', Arbitrum: '🟢', Polygon: '🟣', 'BNB Chain': '🟡', Solana: '☀️', Sonic: '🌀'
+  };
+  const chainAllocations: ChainAllocationItem[] = Object.entries(chainMap).map(([name, usd]) => ({
+    chainName: name,
+    usdValue: Math.round(usd * 100) / 100,
+    percentage: Math.round((usd / totalForAlloc) * 100),
+    icon: chainIconMap[name] || '⛓️'
+  }));
+
+  // Compute health factor (0–100)
+  // Factors: has ETH balance, tx history, no risky approvals, has NFTs
+  const healthFactor = Math.min(100, Math.round(
+    (ethBal > 0 ? 30 : 5) +
+    (txCount > 10 ? 25 : txCount > 0 ? 15 : 0) +
+    (tokens.length > 2 ? 20 : 10) +
+    (nfts.length > 0 ? 15 : 0) +
+    10 // base safe score
+  ));
+
+  return {
+    address,
+    chainId: '0x1',
+    networkName: 'Ethereum',
+    balanceEth,
+    nativeBalance: balanceEth,
+    ethPriceUsd: ethPrice,
+    portfolioValueUsd,
+    transactionCount: txCount,
+    txCount,
+    tokens,
+    chainAllocations,
+    nfts,
+    transactions: [],
+    stakedAssets: {
+      totalStakedUsd: 0,
+      label: 'None ($0.00 USD)',
+      hasStakedAssets: false,
+      stakedDetails: 'No Staked Assets Detected'
+    },
+    providerName: 'Demo Wallet (Alchemy Live)',
+    isDemoWallet: true,
+    // expose healthFactor as a computed value consumers can use
+    ...(({ healthFactor }) => ({ healthFactor } as any))({ healthFactor })
+  };
+};
 
 // Fast fetch with timeout helper to prevent wallet connection hangs
 export const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeoutMs: number = 1000): Promise<Response> => {
